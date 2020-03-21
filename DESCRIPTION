@@ -1,6 +1,6 @@
 Package: googlesheets4
 Title: Access Google Sheets using the Sheets API V4
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: 
     c(person(given = "Jennifer",
              family = "Bryan",
@@ -29,11 +29,11 @@ ByteCompile: true
 Encoding: UTF-8
 Language: en-US
 LazyData: true
-RoxygenNote: 6.1.99.9001
+RoxygenNote: 7.1.0
 NeedsCompilation: no
-Packaged: 2019-10-28 22:05:27 UTC; jenny
+Packaged: 2020-03-21 04:31:39 UTC; jenny
 Author: Jennifer Bryan [cre, aut] (<https://orcid.org/0000-0002-6983-2759>),
   RStudio [cph, fnd]
 Maintainer: Jennifer Bryan <jenny@rstudio.com>
 Repository: CRAN
-Date/Publication: 2019-11-04 21:50:02 UTC
+Date/Publication: 2020-03-21 05:40:02 UTC
