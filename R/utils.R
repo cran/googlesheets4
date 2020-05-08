@@ -1,4 +1,5 @@
-`%NA%` <- function(x, y) if (is.na(x)) y else x
+# for development only
+str1 <- function(x, ...) utils::str(x, ..., max.level = 1)
 
 noNA <- Negate(anyNA)
 allNA <- function(x) all(is.na(x))
@@ -12,10 +13,28 @@ is_integerish <- function(x) {
   floor(x) == x
 }
 
-check_string <- function(x, nm = deparse(substitute(x))) {
-  check_character(x)
-  check_length_one(x)
+check_data_frame <- function(x, nm = deparse(substitute(x))) {
+  if (!is.data.frame(x)) {
+    stop_glue(
+      "{bt(nm)} must be a data frame:\n",
+      "  * {bt(nm)} has class {class_collapse(x)}"
+    )
+  }
   x
+}
+
+check_string <- function(x, nm = deparse(substitute(x))) {
+  check_character(x, nm = nm)
+  check_length_one(x, nm = nm)
+  x
+}
+
+maybe_string <- function(x, nm = deparse(substitute(x))) {
+  if (is.null(x)) {
+    x
+  } else {
+    check_string(x, nm = nm)
+  }
 }
 
 check_length_one <- function(x, nm = deparse(substitute(x))) {
@@ -42,22 +61,46 @@ check_character <- function(x, nm = deparse(substitute(x))) {
   x
 }
 
-check_non_negative_integer <- function(i, nm = deparse(substitute(x))) {
+maybe_character <- function(x, nm = deparse(substitute(x))) {
+  if (is.null(x)) {
+    x
+  } else {
+    check_character(x, nm = nm)
+  }
+}
+
+check_non_negative_integer <- function(i, nm = deparse(substitute(i))) {
   if (length(i) != 1 || !is.numeric(i) ||
       !is_integerish(i) || is.na(i) || i < 0) {
     stop_glue(
       "{bt(nm)} must be a positive integer:\n",
-      "  * {bt(nm)} has class {class_collapse(x)}"
+      "  * {bt(nm)} has class {class_collapse(i)}"
     )
   }
   i
 }
 
-check_bool <- function(bool, nm = deparse(substitute(x))) {
+maybe_non_negative_integer <- function(i, nm = deparse(substitute(i))) {
+  if (is.null(i)) {
+    i
+  } else {
+    check_non_negative_integer(i, nm = nm)
+  }
+}
+
+check_bool <- function(bool, nm = deparse(substitute(bool))) {
   if (!isTRUE(bool) && !identical(bool, FALSE)) {
     stop_glue("{bt(nm)} must be either TRUE or FALSE")
   }
   bool
+}
+
+maybe_bool <- function(bool, nm = deparse(substitute(bool))) {
+  if (is.null(bool)) {
+    bool
+  } else {
+    check_bool(bool, nm = nm)
+  }
 }
 
 vlookup <- function(this, data, key, value) {

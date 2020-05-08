@@ -1,16 +1,18 @@
 ## range_spec is an "internal-use only" S3 class ----
 new_range_spec <- function(...) {
-  l <- list(...)
+  l <- list2(...)
   structure(
     list(
       sheet_name  = l$sheet_name  %||% NULL,
       named_range = l$named_range %||% NULL,
-      A1_range    = l$A1_range    %||% NULL,
-      api_range   = l$api_range   %||% NULL,
+      cell_range  = l$cell_range  %||% NULL,
       cell_limits = l$cell_limits %||% NULL,
-      shim        = FALSE
+      shim        = FALSE,
+      sheets_df   = l$sheets_df   %||% NULL,
+      nr_df       = l$nr_df       %||% NULL
     ),
-    .input = l$.input,
+    # useful when debugging range specification, but otherwise this is TMI
+    # .input = l$.input,
     class = "range_spec"
   )
 }
@@ -19,6 +21,7 @@ as_range_spec <- function(x, ...) {
   UseMethod("as_range_spec")
 }
 
+#' @export
 as_range_spec.default <- function(x, ...) {
   stop_glue(
     "Can't make a range suitable for the Sheets API from the supplied ",
@@ -41,18 +44,19 @@ as_range_spec.default <- function(x, ...) {
 #         A1:B2         ****
 # Sheet1  A1:B2         ****
 # 3       A1:B2         ****
+#' @export
 as_range_spec.character <- function(x,
                                     ...,
                                     sheet = NULL,
                                     skip = 0,
-                                    sheet_names = NULL,
-                                    nr_names = NULL) {
+                                    sheets_df = NULL,
+                                    nr_df = NULL) {
   check_length_one(x)
 
   out <- new_range_spec(
+    sheets_df = sheets_df, nr_df = nr_df,
     .input = list(
-      sheet = sheet, range = x, skip = skip,
-      sheet_names = sheet_names, nr_names = nr_names
+      sheet = sheet, range = x, skip = skip
     )
   )
 
@@ -60,27 +64,26 @@ as_range_spec.character <- function(x,
 
   # range looks like: Sheet1!A1:B2
   if (notNA(m[[".match"]])) {
-    out$sheet_name <- resolve_sheet(m$sheet, sheet_names)
-    out$A1_range   <- m$range
-    out$api_range  <- qualified_A1(out$sheet_name, out$A1_range)
+    out$sheet_name <- lookup_sheet_name(m$sheet, sheets_df)
+    out$cell_range <- m$cell_range
     out$shim       <- TRUE
     return(out)
   }
 
   # check if range matches a named range
-  m <- match(x, nr_names)
+  m <- match(x, nr_df$name)
   if (notNA(m)) {
-    out$api_range <- out$named_range <- x
+    out$named_range <- x
     return(out)
   }
 
   # check if range matches a sheet name
   # API docs: "When a named range conflicts with a sheet's name, the named range
   # is preferred."
-  m <- match(x, sheet_names)
+  m <- match(x, sheets_df$name)
   if (notNA(m)) {
-    # Re-dispatch. Match already established, so no need to pass sheet names.
-    return(as_range_spec(NULL, sheet = x, skip = skip))
+    # Re-dispatch as if provided as `sheet`. Which it should have been.
+    return(as_range_spec(NULL, sheet = x, skip = skip, sheets_df = sheets_df))
   }
 
   # range must be in A1 notation
@@ -89,14 +92,13 @@ as_range_spec.character <- function(x,
     stop_glue(
       "{bt('range')} doesn't appear to be a range in A1 notation, a named ",
       "range, or a sheet name:\n",
-      "  * {sq(x)}"
+      "  * {dq(x)}"
     )
   }
-  out$A1_range <- x
+  out$cell_range <- x
   if (!is.null(sheet)) {
-    out$sheet_name <- resolve_sheet(sheet, sheet_names)
+    out$sheet_name <- lookup_sheet_name(sheet, sheets_df)
   }
-  out$api_range <- qualified_A1(out$sheet_name, out$A1_range)
   out$shim <- TRUE
   out
 }
@@ -111,32 +113,28 @@ as_range_spec.character <- function(x,
 # Sheet1 / 2  0     Send sheet name.
 #             >0    Express skip request in cell_limits object and re-dispatch.
 # Sheet1 / 2  >0    <same as previous>
+#' @export
 as_range_spec.NULL <- function(x,
                                ...,
                                sheet = NULL,
                                skip = 0,
-                               sheet_names = NULL) {
+                               sheets_df = NULL) {
   out <- new_range_spec(
-    .input = list(
-      sheet = sheet, range = x, skip = skip,
-      sheet_names = sheet_names
-    )
+    sheets_df = sheets_df,
+    .input = list(sheet = sheet, skip = skip)
   )
 
-
   if (skip < 1) {
-    if (is.null(sheet)) {
-      return(out)
-    } else {
-      out$sheet_name <- resolve_sheet(sheet, sheet_names)
-      out$api_range <- qualified_A1(out$sheet_name)
-      return(out)
+    if (!is.null(sheet)) {
+      out$sheet_name <- lookup_sheet_name(sheet, sheets_df)
     }
+    return(out)
   }
 
   as_range_spec(
-    sheet = sheet, sheet_names = sheet_names,
-    cell_rows(c(skip + 1, NA)), shim = FALSE
+    cell_rows(c(skip + 1, NA)),
+    sheet = sheet, sheets_df = sheets_df,
+    shim = FALSE
   )
 }
 
@@ -151,26 +149,73 @@ as_range_spec.NULL <- function(x,
 #                           "first visible sheet".
 # Sheet1 / 2  cell_limits   Resolve sheet name, make A1 range, send combined
 #                           result.
+#' @export
 as_range_spec.cell_limits <- function(x,
                                       ...,
                                       shim = TRUE,
                                       sheet = NULL,
-                                      sheet_names = NULL) {
+                                      sheets_df = NULL) {
   out <- new_range_spec(
-    .input = list(
-      sheet = sheet, range = x, sheet_names = sheet_names, shim = shim
-    )
+    sheets_df = sheets_df,
+    .input = list(sheet = sheet, range = x, shim = shim)
   )
   out$cell_limits <- x
   if (!is.null(sheet)) {
-    out$sheet_name <- resolve_sheet(sheet, sheet_names)
+    out$sheet_name <- lookup_sheet_name(sheet, sheets_df)
   }
-  out$api_range <- qualified_A1(
-    out$sheet_name,
-    # we replace some NAs with concrete extents here, for cell reading
-    # but note we use original cell_limits later, for shimming
-    as_sheets_range(x)
-  )
   out$shim <- shim
   out
 }
+
+#' @export
+format.range_spec <- function(x, ...) {
+  is_df <- names(x) %in% c("sheets_df", "nr_df")
+  x[is_df & !map_lgl(x, is.null)] <- "<provided>"
+  glue("{fr(names(x))}: {x}")
+}
+
+#' @export
+print.range_spec <- function(x, ...) {
+ cat(format(x), sep = "\n")
+ invisible(x)
+}
+
+as_A1_range <- function(x) {
+  stopifnot(inherits(x, "range_spec"))
+
+  if (!is.null(x$named_range)) {
+    return(x$named_range)
+  }
+
+  if (!is.null(x$cell_limits)) {
+    x$cell_range <- as_sheets_range(x$cell_limits)
+  }
+
+  qualified_A1(x$sheet_name, x$cell_range)
+}
+
+# has been useful during development, at times
+# sheets_A1_range <- function(ss,
+#                             sheet = NULL,
+#                             range = NULL,
+#                             skip = 0) {
+#   ssid <- as_sheets_id(ss)
+#   maybe_sheet(sheet)
+#   check_range(range)
+#   check_non_negative_integer(skip)
+#
+#   # retrieve spreadsheet metadata ----------------------------------------------
+#   x <- gs4_get(ssid)
+#   message_glue("Spreadsheet name: {dq(x$name)}")
+#
+#   # range specification --------------------------------------------------------
+#   range_spec <- as_range_spec(
+#     range, sheet = sheet, skip = skip,
+#     sheets_df = x$sheets, nr_df = x$named_ranges
+#   )
+#   A1_range <- as_A1_range(range_spec)
+#   message_glue("A1 range {dq(A1_range)}")
+#
+#   range_spec
+# }
+

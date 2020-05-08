@@ -1,31 +1,23 @@
 if (gargle:::secret_can_decrypt("googlesheets4") &&
     !is.null(curl::nslookup("sheets.googleapis.com", error = FALSE))) {
   capture.output(
-    sheets_auth_testing(drive = TRUE)
+    gs4_auth_testing(drive = TRUE)
   )
 } else {
-  sheets_deauth()
+  gs4_deauth()
 }
 
 skip_if_no_token <- function() {
-  testthat::skip_if_not(sheets_has_token())
+  if (gs4_has_token()) {
+    # hack to slow things down in CI
+    Sys.sleep(3)
+  } else {
+    skip("No token")
+  }
 }
 
 expect_error_free <- function(...) {
   expect_error(..., regexp = NA)
-}
-
-.test_sheets <- c(
-  "googlesheets4-cell-tests" = "1WRFIb11PJsNwx2tYBRn3uq8uHwWSI5ziSgbGjkOukmE"
-)
-
-test_sheet <- function(name = "googlesheets4-cell-tests") {
-  stopifnot(is_string(name))
-  m <- match(name, names(.test_sheets))
-  if (is.na(m)) {
-    stop_glue("Unrecognized test sheet: {sq('name')}")
-  }
-  new_sheets_id(.test_sheets[[m]])
 }
 
 ref <- function(pattern, ...) {
@@ -39,4 +31,41 @@ ref <- function(pattern, ...) {
     "`pattern` identifies more than one test reference file:\n",
     paste0("* ", x, collapse = "\n")
   )
+}
+
+nm_fun <- function(context, user = Sys.info()["user"]) {
+  y <- purrr::compact(list(context, user))
+  function(x = NULL) as.character(glue::glue_collapse(c(x, y), sep = "-"))
+}
+
+scoped_temporary_ss <- function(name, ..., env = parent.frame()) {
+  existing <- gs4_find(name)
+  if (nrow(existing) > 0) {
+    stop_glue("A spreadsheet named {sq(name)} already exists.")
+  }
+
+  if (identical(env, globalenv())) {
+    message_glue(
+      "Creating a scratch Sheet called {sq(name)}.
+       Remove with {bt('googledrive::drive_trash(ss)')}"
+    )
+  } else {
+    withr::defer({
+      trash_me <- gs4_find(name)
+      if (nrow(trash_me) < 1) {
+        warning_glue("The spreadsheet named {sq(name)} already seems to be deleted.")
+      } else {
+        googledrive::drive_trash(trash_me)
+      }
+    }, envir = env)
+  }
+  gs4_create(name, ...)
+}
+
+toggle_rlang_interactive <- function() {
+  before <- getOption("rlang_interactive")
+  after <- if (identical(before, FALSE)) TRUE else FALSE
+  options(rlang_interactive = after)
+  ui_line(glue::glue("rlang_interactive: {before %||% '<unset>'} --> {after}"))
+  invisible()
 }

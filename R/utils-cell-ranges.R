@@ -1,59 +1,21 @@
 A1_char_class <- "[a-zA-Z0-9:$]"
-compound_rx <- glue("(?<sheet>^.+)!(?<range>{A1_char_class}+$)")
+compound_rx <- glue("(?<sheet>^.+)!(?<cell_range>{A1_char_class}+$)")
 letter_part <- "[$]?[A-Za-z]{1,3}"
 number_part <- "[$]?[0-9]{1,7}"
 A1_rx <- glue("^{letter_part}{number_part}$|^{letter_part}$|^{number_part}$")
 A1_decomp <- glue("(?<column>{letter_part})?(?<row>{number_part})?")
 
-resolve_sheet <- function(sheet = NULL, sheet_names = NULL) {
-  if (is.null(sheet)) {
+qualified_A1 <- function(sheet_name = NULL, cell_range = NULL) {
+  n_missing <- is.null(sheet_name) + is.null(cell_range)
+  if (n_missing == 2) {
     return()
   }
-  check_sheet(sheet)
-
-  if (is.character(sheet)) {
-    sheet <- sq_unescape(sheet)
-    if (length(sheet_names) > 0) {
-      m <- match(sheet, sheet_names)
-      if (is.na(m)) {
-        stop_glue("No sheet found with this name: {sq(sheet)}")
-      }
-    }
-    return(sheet)
-  }
-
-  if (length(sheet_names) < 1) {
-    stop_glue("Sheet specified by number, but no sheet names provided for lookup.")
-  }
-  m <- as.integer(sheet)
-  if (!(m %in% seq_along(sheet_names))) {
-    stop_glue(
-      "There are {length(sheet_names)} sheet names:\n",
-      "  * Requested sheet number is out-of-bounds: {m}"
-    )
-  }
-  sheet_names[[m]]
-}
-
-check_sheet <- function(sheet = NULL) {
-  if (is.null(sheet)) {
-    return()
-  }
-  check_length_one(sheet)
-  if (!is.character(sheet) && !is.numeric(sheet)) {
-    stop_glue(
-      "{bt('sheet')} must be either character (sheet name) or ",
-      "numeric (sheet number):\n",
-      "  * {bt('sheet')} has class {class_collapse(sheet)}"
-    )
-  }
-  return(sheet)
-}
-
-qualified_A1 <- function(sheet_name = NULL, A1_range = NULL) {
+  sep <- if (n_missing == 0) "!" else ""
   # API docs: "For simplicity, it is safe to always surround the sheet name
   # with single quotes."
-  paste0(c(sq_escape(sheet_name), A1_range), collapse = "!")
+  as.character(
+    glue("{sq_escape(sheet_name) %||% ''}{sep}{cell_range %||% ''}")
+  )
 }
 
 as_sheets_range <- function(x) {
@@ -89,7 +51,11 @@ as_sheets_range <- function(x) {
 
   if (noNA(limits$ul) && sum(is.na(limits$lr)) == 1) {
     ul <- paste0(cellranger::num_to_letter(col_limits[1]), row_limits[1])
-    lr <- cellranger::num_to_letter(col_limits[2]) %NA% row_limits[2]
+    lr <- if (is.na(col_limits[2])) {
+      row_limits[2]
+    } else {
+      cellranger::num_to_letter(col_limits[2])
+    }
     return(paste0(c(ul, lr), collapse = ":"))
   }
 
@@ -114,7 +80,7 @@ as_sheets_range <- function(x) {
 #   * `grid_rows` = max row extent
 #   * `grid_columns` = max col extent
 # probably obtained like so:
-# df <- sheets_get()$sheets
+# df <- gs4_get()$sheets
 # df[df$name == sheet, c("grid_rows", "grid_columns")]
 resolve_limits <- function(cell_limits, sheet_data = NULL) {
   # If no sheet_data, use theoretical maxima.
@@ -135,25 +101,25 @@ resolve_limits <- function(cell_limits, sheet_data = NULL) {
 
   # i:j, ?:j, i:?
   if (allNA(clims(cell_limits))) {
-    cell_limits$ul[1] <- cell_limits$ul[1] %NA% 1L
-    cell_limits$lr[1] <- cell_limits$lr[1] %NA% MAX_ROW
+    cell_limits$ul[1] <- cell_limits$ul[1] %|% 1L
+    cell_limits$lr[1] <- cell_limits$lr[1] %|% MAX_ROW
     return(cell_limits)
   }
 
   # X:Y, ?:Y, X:?
   if (allNA(rlims(cell_limits))) {
-    cell_limits$ul[2] <- cell_limits$ul[2] %NA% 1L
-    cell_limits$lr[2] <- cell_limits$lr[2] %NA% MAX_COL
+    cell_limits$ul[2] <- cell_limits$ul[2] %|% 1L
+    cell_limits$lr[2] <- cell_limits$lr[2] %|% MAX_COL
     return(cell_limits)
   }
 
   # complete ul
-  cell_limits$ul[1] <- cell_limits$ul[1] %NA% 1L
-  cell_limits$ul[2] <- cell_limits$ul[2] %NA% 1L
+  cell_limits$ul[1] <- cell_limits$ul[1] %|% 1L
+  cell_limits$ul[2] <- cell_limits$ul[2] %|% 1L
 
   if (allNA(cell_limits$lr)) {
     # populate col of lr
-    cell_limits$lr[2] <- cell_limits$lr[2] %NA% MAX_COL
+    cell_limits$lr[2] <- cell_limits$lr[2] %|% MAX_COL
   }
 
   cell_limits
@@ -168,7 +134,7 @@ as_cell_limits <- function(x) {
 
   ## successful match (and parse)
   if (notNA(parsed$`.match`)) {
-    cell_limits <- limits_from_range(parsed$range)
+    cell_limits <- limits_from_range(parsed$cell_range)
     cell_limits$sheet <- parsed$sheet
     return(cell_limits)
   }
@@ -200,17 +166,18 @@ limits_from_range <- function(x) {
   if (anyNA(corners$.match))  {stop_glue("Invalid range: {sq(x)}")}
   corners$column <- ifelse(nzchar(corners$column), corners$column, NA_character_)
   corners$row <- ifelse(nzchar(corners$row), corners$row, NA_character_)
+  corners$row <- as.integer(corners$row)
   if (nrow(corners) == 1) {
     corners <- corners[c(1, 1), ]
   }
   cellranger::cell_limits(
     ul = c(
-      corners$row[1] %NA% NA_integer_,
-      cellranger::letter_to_num(corners$column[1]) %NA% NA_integer_
+      corners$row[1] %|% NA_integer_,
+      cellranger::letter_to_num(corners$column[1]) %|% NA_integer_
     ),
     lr = c(
-      corners$row[2] %NA% NA_integer_,
-      cellranger::letter_to_num(corners$column[2]) %NA% NA_integer_
+      corners$row[2] %|% NA_integer_,
+      cellranger::letter_to_num(corners$column[2]) %|% NA_integer_
     )
   )
 }
@@ -225,19 +192,20 @@ check_range <- function(range = NULL) {
 }
 
 ## the `...` are used to absorb extra variables when this is used inside pmap()
-make_range <- function(start_row, end_row, start_column, end_column,
+make_cell_range <- function(start_row, end_row, start_column, end_column,
                        sheet_name, ...) {
   cl <- cellranger::cell_limits(
     ul = c(start_row, start_column),
     lr = c(end_row, end_column),
     sheet = sq(sheet_name)
   )
-  cellranger::as.range(cl, fo = "A1")
+  as_sheets_range(cl)
 }
 
 ## A pair of functions for the (un)escaping of spreadsheet names
 ## for use in range strings like 'Sheet1'!A2:D4
 sq_escape <- function(x) {
+  if (is.null(x)) return()
   ## if string already starts and ends with single quote, pass it through
   is_not_quoted <- !map_lgl(x, ~ grepl("^'.*'$", .x))
   ## duplicate each single quote and protect string with single quotes
@@ -246,6 +214,7 @@ sq_escape <- function(x) {
 }
 
 sq_unescape <- function(x) {
+  if (is.null(x)) return()
   ## only modify if string starts and ends with single quote
   is_quoted <- map_lgl(x, ~ grepl("^'.*'$", .x))
   ## strip leading and trailing single quote and substitute 1 single quote

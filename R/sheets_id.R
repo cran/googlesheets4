@@ -1,21 +1,27 @@
 #' `sheets_id` object
 #'
-#' @description Holds a spreadsheet identifier, i.e. a string. This is what the
-#'   Sheets and Drive APIs refer to as `spreadsheetId` and `fileId`,
-#'   respectively. Any object of class `sheets_id` will also have the
-#'   [`drive_id`][googledrive::as_id] class, which is used by [googledrive] for
-#'   the same purpose.
+#' @description A `sheets_id` is a spreadsheet identifier, i.e. a string. This
+#'   is what the Sheets and Drive APIs refer to as `spreadsheetId` and `fileId`,
+#'   respectively. When you print a `sheets_id`, we attempt to reveal its
+#'   current metadata (via `gs4_get()`). This can fail for a variety of
+#'   reasons (e.g. if you're offline), but the `sheets_id` is always revealed
+#'   and is returned, invisibly.
 #'
-#' @description This means you can pipe a `sheets_id` object straight into
-#'   [googledrive] functions for all your Google Drive needs that have nothing
-#'   to do with the file being a spreadsheet. Examples: examine or change file
-#'   name, path, or permissions, copy the file, or visit it in a web browser.
+#'   Any object of class `sheets_id` will also have the
+#'   [`drive_id`][googledrive::as_id] class, which is used by [googledrive] for
+#'   the same purpose. This means you can pipe a `sheets_id` object straight
+#'   into [googledrive] functions for all your Google Drive needs that have
+#'   nothing to do with the file being a spreadsheet. Examples: examine or
+#'   change file name, path, or permissions, copy the file, or visit it in a web
+#'   browser.
 #'
 #' @name sheets_id
 #' @seealso [as_sheets_id()]
 #'
 #' @examples
-#' sheets_example("mini-gap")
+#' if (gs4_has_token()) {
+#'   gs4_example("mini-gap")
+#' }
 NULL
 
 ## implementing sheets_id as advised here:
@@ -56,18 +62,24 @@ sheets_id <- function(x) {
 #'   * Spreadsheet id, "a string containing letters, numbers, and some special
 #'   characters", typically 44 characters long, in our experience. Example:
 #'   `1qpyC0XzvTcKT6EISywvqESX3A0MwQoFDE8p-Bll4hps`.
-#'   * A URL, from which we can excavate a spreadsheet or file id. Example: <https://docs.google.com/spreadsheets/d/1BzfL0kZUz1TsI5zxJF1WNF01IxvC67FbOJUiiGMZ_mQ/edit#gid=1150108545>.
+#'   * A URL, from which we can excavate a spreadsheet or file id. Example:
+#'     <https://docs.google.com/spreadsheets/d/1BzfL0kZUz1TsI5zxJF1WNF01IxvC67FbOJUiiGMZ_mQ/edit#gid=1150108545>.
 #'   * A one-row [`dribble`][googledrive::dribble], a "Drive tibble" used by the
-#'   [googledrive] package. In general, a `dribble` can represent several files,
-#'   one row per file. Since googlesheets4 is not vectorized over spreadsheets,
-#'   we are only prepared to accept a one-row `dribble`.
-#'     - [`googledrive::drive_get("YOUR SHEET NAME")`][googledrive::drive_get()]
+#'     [googledrive] package. In general, a `dribble` can represent several
+#'     files, one row per file. Since googlesheets4 is not vectorized over
+#'     spreadsheets, we are only prepared to accept a one-row `dribble`.
+#'     - [`googledrive::drive_get("YOUR_SHEET_NAME")`][googledrive::drive_get()]
 #'     is a great way to look up a Sheet via its name.
+#'     - [`gs4_find("YOUR_SHEET_NAME")`][gs4_find()] is another good way
+#'     to get your hands on a Sheet.
+#'   * Spreadsheet meta data, as returned by, e.g., [gs4_get()]. Literally,
+#'     this is an object of class `googlesheets4_spreadsheet`.
 #'
 #' @description This is a generic function.
 #'
 #' @param x Something that uniquely identifies a Google Sheet: a [`sheets_id`],
-#'   URL, or [`dribble`][googledrive::dribble].
+#'   a URL, one-row [`dribble`][googledrive::dribble], or a
+#'   `googlesheets4_spreadsheet`.
 #' @param ... Other arguments passed down to methods. (Not used.)
 #' @export
 #' @examples
@@ -134,6 +146,11 @@ as_sheets_id.character <- function(x, ...) {
   sheets_id(out)
 }
 
+#' @export
+as_sheets_id.googlesheets4_spreadsheet <- function(x, ...) {
+  new_sheets_id(x$spreadsheet_id)
+}
+
 ## copied from googledrive
 one_id <- function(x) {
   if (!grepl("^http|/", x)) return(x)
@@ -146,4 +163,51 @@ one_id <- function(x) {
   } else {
     gsub("/d/|/folders/|id=", "", regmatches(x, id_loc))
   }
+}
+
+#' Extract the file id from Sheet metadata
+#'
+#' This method implements [googledrive::as_id()] for the class used here to hold
+#' metadata for a Sheet. It just calls [as_sheets_id()], but it's handy in case
+#' you forget that exists and hope that `as_id()` will "just work".
+#'
+#' @inheritParams googledrive::as_id
+#' @param x An instance of `googlesheets4_spreadsheet`, which is returned by,
+#'   e.g., [gs4_get()].
+#' @inherit googledrive::as_id return
+#' @importFrom googledrive as_id
+#' @export
+#' @examples
+#' if (gs4_has_token()) {
+#'   ss <- gs4_get(gs4_example("mini-gap"))
+#'   class(ss)
+#'   googledrive::as_id(ss)
+#' }
+as_id.googlesheets4_spreadsheet <- function(x, ...) as_sheets_id(x)
+
+#' @export
+format.sheets_id <- function(x, ...) {
+  meta <- tryCatch(
+    with_abort(gs4_get(x)),
+    rlang_error = function(e) e
+  )
+
+  if (inherits(meta, "googlesheets4_spreadsheet")) {
+    return(format(meta))
+  }
+
+  # meta is an error, i.e. gs4_get() failed
+  out <- new_googlesheets4_spreadsheet(list(spreadsheetId = x))
+  c(
+    format(out),
+    "",
+    "Unable to get metadata for this Sheet. Error details:",
+    meta$message
+  )
+}
+
+#' @export
+print.sheets_id <- function(x, ...) {
+  cat(format(x), sep = "\n")
+  invisible(x)
 }

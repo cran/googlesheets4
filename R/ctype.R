@@ -50,7 +50,7 @@ ctype.character <- function(x, ...) .ctypes[x]
 
 #' @export
 ctype.list <- function(x, ...) {
-  out <- rlang::rep_along(x, NA_character_)
+  out <- rep_along(x, NA_character_)
   is_SHEETS_CELL <- map_lgl(x, inherits, what = "SHEETS_CELL")
   out[is_SHEETS_CELL] <- map_chr(x[is_SHEETS_CELL], ctype)
   out
@@ -128,7 +128,7 @@ consensus_col_type <- function(ctype) {
 }
 
 blank_to_logical <- function(ctype) {
-  purrr::modify_if(ctype, ~ identical(.x, "CELL_BLANK"), ~ "CELL_LOGICAL")
+  modify_if(ctype, ~ identical(.x, "CELL_BLANK"), ~ "CELL_LOGICAL")
 }
 
 ## input: an instance of CellData
@@ -142,12 +142,12 @@ apply_ctype <- function(cell_list, na = "", trim_ws = TRUE) {
 }
 
 infer_ctype <- function(cell, na = "", trim_ws = TRUE) {
-  ## Blank cell criteria
-  ##   * cell is NULL or list()
-  ##   * cell has no effectiveValue
-  ##   * formattedValue matches an `na` string
+  # Blank cell criteria
+  #   * cell is NULL or list()
+  #   * cell has no effectiveValue
+  #   * formattedValue matches an `na` string
   if ( length(cell) == 0 ||
-       is.null(cell[["effectiveValue"]]) ||
+       length(cell[["effectiveValue"]]) == 0 ||
        is_na_string(cell[["formattedValue"]], na = na, trim_ws = trim_ws)
   ) {
     return("CELL_BLANK")
@@ -155,24 +155,20 @@ infer_ctype <- function(cell, na = "", trim_ws = TRUE) {
 
   effective_type <- .extended_value[[names(cell[["effectiveValue"]])]]
 
-  if (effective_type == "error") {
-    return("CELL_BLANK")
-  }
-
-  if (effective_type == "formula") {
-    warning_glue("Cell has formula as effectiveValue. I thought impossible!")
-    return("CELL_TEXT")
-  }
-
-  if (effective_type != "number") {
+  if (!identical(effective_type, "number")) {
     return(switch(
       effective_type,
-      string = "CELL_TEXT",
+      error   = "CELL_BLANK",
+      string  = "CELL_TEXT",
       boolean = "CELL_LOGICAL",
+      formula = {
+        warning_glue("Cell has formula as effectiveValue. I thought impossible!")
+        "CELL_TEXT"
+      },
       stop_glue("Unhandled effective_type: {sq(effective_type)}")
     ))
   }
-  ## only numeric cells remain
+  # only numeric cells remain
 
   nf_type <- pluck(
     cell,
