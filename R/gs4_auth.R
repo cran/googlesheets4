@@ -1,10 +1,8 @@
 ## This file is the interface between googlesheets4 and the
 ## auth functionality in gargle.
 
-.auth <- gargle::AuthState$new(
-  package     = "googlesheets4",
-  auth_active = TRUE
-)
+# Initialization happens in .onLoad
+.auth <- NULL
 
 ## The roxygen comments for these functions are mostly generated from data
 ## in this list and template text maintained in gargle.
@@ -230,6 +228,27 @@ gs4_user <- function() {
   } else {
     message("Not logged in as any specific Google user.")
     invisible()
+  }
+}
+
+# use this as a guard whenever a googlesheets4 function calls a
+# googledrive function that can make an API call
+# goal is to expose (most) cases of being auth'ed as 2 different users
+# which can lead to very puzzling failures
+check_gs4_email_is_drive_email <- function() {
+  if (googledrive::drive_has_token() && gs4_has_token()) {
+    drive_email <- googledrive::drive_user()[["emailAddress"]]
+    gs4_email <- gs4_user()
+    if (drive_email != gs4_email) {
+      message_glue("
+        Authenticated as 2 different users with googledrive and googlesheets4:
+          * googledrive: {drive_email}
+          * googlesheets4: {gs4_email}
+        If you get a puzzling result, this is probably why.
+        See the article \"Using googlesheets4 with googledrive\" for tips:
+        https://googlesheets4.tidyverse.org/articles/articles/drive-and-sheets.html
+      ")
+    }
   }
 }
 

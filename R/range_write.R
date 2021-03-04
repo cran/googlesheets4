@@ -1,7 +1,6 @@
 #' (Over)write new data into a range
 #'
 #' @description
-#' \lifecycle{experimental}
 #'
 #' Writes a data frame into a range of cells. Main differences from
 #' [sheet_write()] (a.k.a. [write_sheet()]):
@@ -101,7 +100,7 @@
 #'   range_write(ss, data = dat, range = "beta!C5", col_names = FALSE)
 #'
 #'   # clean up
-#'   googledrive::drive_find("range-write-demo") %>%
+#'   gs4_find("range-write-demo") %>%
 #'     googledrive::drive_trash()
 #' }
 range_write <- function(ss,

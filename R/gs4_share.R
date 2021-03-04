@@ -11,9 +11,9 @@
 # --> "anyone with the link" can view
 #
 # examples:
-# gs4_share()
-# gs4_share(type = "user", emailAddress = "jane@example.com")
-# gs4_share(type = "user", emailAddress = "jane@example.com", role = "writer")
+# gs4_share(ss)
+# gs4_share(ss, type = "user", emailAddress = "jane@example.com")
+# gs4_share(ss, type = "user", emailAddress = "jane@example.com", role = "writer")
 gs4_share <- function(ss,
                          ...,
                          role = c(
@@ -21,10 +21,11 @@ gs4_share <- function(ss,
                            "owner", "organizer"
                          ),
                          type = c("anyone", "user", "group", "domain")) {
+  check_gs4_email_is_drive_email()
   role <- match.arg(role)
   type <- match.arg(type)
   googledrive::drive_share(
-    file = googledrive::as_id(as_sheets_id(ss)),
+    file = as_sheets_id(ss),
     role = role,
     type = type,
     ...

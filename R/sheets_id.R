@@ -63,7 +63,7 @@ sheets_id <- function(x) {
 #'   characters", typically 44 characters long, in our experience. Example:
 #'   `1qpyC0XzvTcKT6EISywvqESX3A0MwQoFDE8p-Bll4hps`.
 #'   * A URL, from which we can excavate a spreadsheet or file id. Example:
-#'     <https://docs.google.com/spreadsheets/d/1BzfL0kZUz1TsI5zxJF1WNF01IxvC67FbOJUiiGMZ_mQ/edit#gid=1150108545>.
+#'     `"https://docs.google.com/spreadsheets/d/1BzfL0kZUz1TsI5zxJF1WNF01IxvC67FbOJUiiGMZ_mQ/edit#gid=1150108545"`.
 #'   * A one-row [`dribble`][googledrive::dribble], a "Drive tibble" used by the
 #'     [googledrive] package. In general, a `dribble` can represent several
 #'     files, one row per file. Since googlesheets4 is not vectorized over
@@ -78,8 +78,8 @@ sheets_id <- function(x) {
 #' @description This is a generic function.
 #'
 #' @param x Something that uniquely identifies a Google Sheet: a [`sheets_id`],
-#'   a URL, one-row [`dribble`][googledrive::dribble], or a
-#'   `googlesheets4_spreadsheet`.
+#'   a [`drive_id`][googledrive::as_id], a URL, a one-row
+#'   [`dribble`][googledrive::dribble], or a `googlesheets4_spreadsheet`.
 #' @param ... Other arguments passed down to methods. (Not used.)
 #' @export
 #' @examples
@@ -105,6 +105,8 @@ as_sheets_id.dribble <- function(x, ...) {
       "  * Actual input has {nrow(x)} rows."
     )
   }
+  # not worrying about whether we are authed as same user with Sheets and Drive
+  # revealing the MIME type is local to the dribble, so this makes no API calls
   mime_type <- googledrive::drive_reveal(x, "mime_type")[["mime_type"]]
   target <- "application/vnd.google-apps.spreadsheet"
   if (!identical(mime_type, target)) {

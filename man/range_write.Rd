@@ -48,8 +48,6 @@ Currently googlesheets4 provides no real support for formatting, so
 The input \code{ss}, as an instance of \code{\link{sheets_id}}
 }
 \description{
-\lifecycle{experimental}
-
 Writes a data frame into a range of cells. Main differences from
 \code{\link[=sheet_write]{sheet_write()}} (a.k.a. \code{\link[=write_sheet]{write_sheet()}}):
 \itemize{
@@ -123,7 +121,7 @@ if (gs4_has_token()) {
   range_write(ss, data = dat, range = "beta!C5", col_names = FALSE)
 
   # clean up
-  googledrive::drive_find("range-write-demo") \%>\%
+  gs4_find("range-write-demo") \%>\%
     googledrive::drive_trash()
 }
 }

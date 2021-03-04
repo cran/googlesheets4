@@ -33,32 +33,31 @@ ref <- function(pattern, ...) {
   )
 }
 
-nm_fun <- function(context, user = Sys.info()["user"]) {
+nm_fun <- function(context, user = NULL) {
+  if (as.logical(Sys.getenv("GITHUB_ACTIONS", unset = "false"))) {
+    user <-
+      glue("gha-{Sys.getenv('GITHUB_WORKFLOW')}-{Sys.getenv('GITHUB_RUN_ID')}")
+  } else {
+    user <- Sys.info()["user"]
+  }
   y <- purrr::compact(list(context, user))
   function(x = NULL) as.character(glue::glue_collapse(c(x, y), sep = "-"))
 }
 
-scoped_temporary_ss <- function(name, ..., env = parent.frame()) {
+local_ss <- function(name, ..., env = parent.frame()) {
   existing <- gs4_find(name)
   if (nrow(existing) > 0) {
     stop_glue("A spreadsheet named {sq(name)} already exists.")
   }
 
-  if (identical(env, globalenv())) {
-    message_glue(
-      "Creating a scratch Sheet called {sq(name)}.
-       Remove with {bt('googledrive::drive_trash(ss)')}"
-    )
-  } else {
-    withr::defer({
-      trash_me <- gs4_find(name)
-      if (nrow(trash_me) < 1) {
-        warning_glue("The spreadsheet named {sq(name)} already seems to be deleted.")
-      } else {
-        googledrive::drive_trash(trash_me)
-      }
-    }, envir = env)
-  }
+  withr::defer({
+    trash_me <- gs4_find(name)
+    if (nrow(trash_me) < 1) {
+      warning_glue("The spreadsheet named {sq(name)} already seems to be deleted.")
+    } else {
+      googledrive::drive_trash(trash_me)
+    }
+  }, envir = env)
   gs4_create(name, ...)
 }
 
