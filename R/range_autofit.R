@@ -88,10 +88,11 @@ range_autofit <- function(ss,
     1, "autoResizeDimensions", "dimensions", "dimension"
   )
 
-  message_glue("Editing {dq(x$name)}")
-  message_glue(
-    "Resizing one or more {tolower(resize_dim)} in {dq(range_spec$sheet_name)}"
-  )
+  gs4_bullets(c(
+    v = "Editing {.s_sheet {x$name}}.",
+    v = "Resizing one or more {tolower(resize_dim)} in \\
+         {.w_sheet {range_spec$sheet_name}}."
+  ))
 
   # do it ----------------------------------------------------------------------
   req <- request_generate(
@@ -130,7 +131,8 @@ check_only_one_dimension <- function(x) {
     return(invisible(x))
   }
 
-  stop_glue("The {bt('range')} must target only columns or only rows")
+  gs4_abort("
+    The {.arg range} must target only columns or only rows, but not both.")
 }
 
 determine_dimension <- function(x) {

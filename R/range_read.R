@@ -10,9 +10,6 @@
 #'   throughout the googlesheets4 package.
 #'
 #' `read_sheet()` and `range_read()` are synonyms and you can use either one.
-#' The first release of googlesheets used a `sheets_` prefix everywhere, so we
-#' had `sheets_read()`. It still works, but it's deprecated and will go away
-#' rather swiftly.
 #'
 #' @section Column Specification:
 #'
@@ -98,14 +95,14 @@ range_read <- function(ss,
                        skip = 0, n_max = Inf,
                        guess_max = min(1000, n_max),
                        .name_repair = "unique") {
-  ## check these first, so we don't download cells in vain
+  # check these first, so we don't download cells in vain
   col_spec <- standardise_col_spec(col_names, col_types)
   check_character(na)
   check_bool(trim_ws)
   check_non_negative_integer(guess_max)
 
-  ## range spec params are checked inside get_cells():
-  ## ss, sheet, range, skip, n_max
+  # range spec params are checked inside get_cells():
+  # ss, sheet, range, skip, n_max
   df <- get_cells(
     ss = ss,
     sheet = sheet, range = range,
@@ -183,20 +180,20 @@ spread_sheet_impl_ <- function(df,
   ctypes <- col_spec$ctypes
   col_names_in_sheet <- isTRUE(col_names)
 
-  ## absolute spreadsheet coordinates no longer relevant
-  ## update row, col to refer to location in output data frame
-  ## row 0 holds cells designated as column names
+  # absolute spreadsheet coordinates no longer relevant
+  # update row, col to refer to location in output data frame
+  # row 0 holds cells designated as column names
   df$row <- df$row - min(df$row) + !col_names_in_sheet
   nr <- max(df$row)
   df$col <- df$col - min(df$col) + 1
 
   if (is.logical(col_names)) {
-    ## if col_names is logical, this is first chance to check/set length of
-    ## ctypes, using the cell data
-    ctypes <- rep_ctypes(max(df$col), ctypes, "columns found in sheet")
+    # if col_names is logical, this is first chance to check/set length of
+    # ctypes, using the cell data
+    ctypes <- rep_ctypes(max(df$col), ctypes, "column{?s} found in sheet")
   }
 
-  ## drop cells in skipped cols, update df$col and ctypes
+  # drop cells in skipped cols, update df$col and ctypes
   skipped_col <- ctypes == "COL_SKIP"
   if (any(skipped_col)) {
     df <- df[!df$col %in% which(skipped_col), ]
@@ -205,14 +202,14 @@ spread_sheet_impl_ <- function(df,
   }
   nc <- max(df$col)
 
-  ## if column names were provided explicitly, we need to check that length
-  ## of col_names (and, therefore, ctypes) == nc
+  # if column names were provided explicitly, we need to check that length
+  # of col_names (and, therefore, ctypes) == nc
   if (is.character(col_names) && length(col_names) != nc) {
-    stop_glue(
-      "Length of {bt('col_names')} is not compatible with the data:\n",
-      "  * Expected {length(col_names)} un-skipped columns\n",
-      "  * But data has {nc} columns"
-    )
+    gs4_abort(c(
+      "Length of {.arg col_names} is not compatible with the data:",
+      "*" = "{.arg col_names} has length {length(col_names)}.",
+      x = "But data has {nc} un-skipped column{?s}."
+    ))
   }
 
   df$cell <- apply_ctype(df$cell, na = na, trim_ws = trim_ws)
@@ -222,7 +219,8 @@ spread_sheet_impl_ <- function(df,
   }
   if (col_names_in_sheet) {
     this <- df$row == 0
-    col_names[df$col[this]] <- as_character(df$cell[this])
+    col_names[df$col[this]] <-
+      as_character(df$cell[this], na = na, trim_ws = trim_ws)
     df <- df[!this, ]
   }
 
@@ -246,10 +244,10 @@ standardise_col_spec <- function(col_names, col_types) {
   check_col_names(col_names)
   ctypes <- standardise_ctypes(col_types)
   if (is.character(col_names)) {
-    ctypes <- rep_ctypes(length(col_names), ctypes, "column names")
+    ctypes <- rep_ctypes(length(col_names), ctypes, "column name{?s}")
     col_names <- filter_col_names(col_names, ctypes)
-    ## if column names were provided explicitly, this is now true
-    ## length(col_names) == length(ctypes[ctypes != "COL_SKIP"])
+    # if column names were provided explicitly, this is now true
+    # length(col_names) == length(ctypes[ctypes != "COL_SKIP"])
   }
   list(col_names = col_names, ctypes = ctypes)
 }
@@ -262,17 +260,16 @@ check_col_names <- function(col_names) {
   check_has_length(col_names)
 }
 
-## input:  a string of readr-style shortcodes or NULL
-## output: a vector of col types of length >= 1
+# input:  a string of readr-style shortcodes or NULL
+# output: a vector of col types of length >= 1
 standardise_ctypes <- function(col_types) {
   col_types <- col_types %||% "?"
   check_string(col_types)
 
   if (identical(col_types, "")) {
-    stop_glue(
-      "{bt('col_types')}, if provided, must be a string that contains at ",
-      "least one readr-style shortcode."
-    )
+    gs4_abort("
+      {.arg col_types}, when provided, must be a string that contains at \\
+      least one readr-style shortcode.")
   }
 
   accepted_codes <- keep(names(.ctypes), nzchar)
@@ -280,20 +277,20 @@ standardise_ctypes <- function(col_types) {
   col_types_split <- strsplit(col_types, split = "")[[1]]
   ok <- col_types_split %in% accepted_codes
   if (!all(ok)) {
-    bad_codes <- glue_collapse(sq(col_types_split[!ok]), sep = ",")
-    stop_glue(
-      "{bt('col_types')} must be a string of readr-style shortcodes:\n",
-      "  * Unrecognized codes: {bad_codes}"
-    )
+    gs4_abort(c(
+      "{.arg col_types} must be a string of readr-style shortcodes. \\
+       Unrecognized code{?s}{cli::qty(sum(!ok))}:",
+      bulletize(gargle_map_cli(col_types_split[!ok]), bullet = "x")
+    ))
   }
   ctypes <- ctype(col_types_split)
   if (all(ctypes == "COL_SKIP")) {
-    stop_glue("{bt('col_types')} can't request that all columns be skipped")
+    gs4_abort("{.arg col_types} can't request that all columns be skipped.")
   }
   ctypes
 }
 
-## makes sure there are n ctypes or n ctypes that are not COL_SKIP
+# makes sure there are n ctypes or n ctypes that are not COL_SKIP
 rep_ctypes <- function(n, ctypes, comparator = "n") {
   if (length(ctypes) == n) {
     return(ctypes)
@@ -305,17 +302,21 @@ rep_ctypes <- function(n, ctypes, comparator = "n") {
   if (length(ctypes) == 1) {
     return(rep_len(ctypes, length.out = n))
   }
-  stop_glue(
-    "Length of {bt('col_types')} is not compatible with {comparator}:\n",
-    "  * {length(ctypes)} column types specified\n",
-    "  * {n_col_types} un-skipped column types specified\n",
-    "  * But there are {n} {comparator}."
-  )
+  # must pre-pluralize the comparator, e.g.
+  # column{?s} found in sheet
+  # column name{?s}
+  comparator <- cli::pluralize(sprintf("{cli::qty(n)}%s{?s}", comparator))
+  gs4_abort(c(
+    "Length of {.arg col_types} is not compatible with {comparator}:",
+    x = "{length(ctypes)} column type{?s} specified.",
+    x = "{n_col_types} un-skipped column type{?s} specified.",
+    x = "But there {cli::qty(n)}{?is/are} {n} {comparator}."
+  ))
 }
 
-## removes col_names for skipped columns
-## rep_ctypes() is called before and ensures that col_names and ctypes are
-## conformable (hence the non-user facing stopifnot())
+# removes col_names for skipped columns
+# rep_ctypes() is called before and ensures that col_names and ctypes are
+# conformable (hence the non-user facing stopifnot())
 filter_col_names <- function(col_names, ctypes) {
   stopifnot(length(col_names) <= length(ctypes))
   col_names[ctypes != "COL_SKIP"]

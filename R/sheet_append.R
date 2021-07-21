@@ -48,10 +48,10 @@ sheet_append <- function(ss, data, sheet = 1) {
   check_sheet(sheet)
 
   x <- gs4_get(ssid)
-  message_glue("Writing to {dq(x$name)}")
+  gs4_bullets(c(v = "Writing to {.s_sheet {x$name}}."))
 
   s <- lookup_sheet(sheet, sheets_df = x$sheets)
-  message_glue("Appending {nrow(data)} row(s) to {dq(s$name)}")
+  gs4_bullets(c(v = "Appending {nrow(data)} row{?s} to {.w_sheet {s$name}}."))
 
   req <- request_generate(
     "sheets.spreadsheets.batchUpdate",
@@ -72,6 +72,6 @@ prepare_rows <- function(sheet_id, df) {
     "AppendCellsRequest",
     sheetId = sheet_id,
     rows = as_RowData(df, col_names = FALSE), # an array of instances of RowData
-    fields = "userEnteredValue,userEnteredFormat"
+    fields = "userEnteredValue,userEnteredFormat.numberFormat"
   ))
 }

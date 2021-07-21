@@ -1,7 +1,7 @@
 #' Read cells from a Sheet
 #'
 #' This low-level function returns cell data in a tibble with one row per cell.
-#' This tibble has integer variables `row` and `column` (referring to location
+#' This tibble has integer variables `row` and `col` (referring to location
 #' with the Google Sheet), an A1-style reference `loc`, and a `cell`
 #' list-column. The flagship function [read_sheet()], a.k.a. [range_read()], is
 #' what most users are looking for, rather than `range_read_cells()`.
@@ -46,15 +46,15 @@
 #'   )
 #' }
 range_read_cells <- function(ss,
-                         sheet = NULL,
-                         range = NULL,
-                         skip = 0, n_max = Inf,
-                         cell_data = c("default", "full"),
-                         discard_empty = TRUE) {
+                             sheet = NULL,
+                             range = NULL,
+                             skip = 0, n_max = Inf,
+                             cell_data = c("default", "full"),
+                             discard_empty = TRUE) {
   cell_data <- match.arg(cell_data)
 
-  ## range spec params are checked inside get_cells():
-  ## ss, sheet, range, skip, n_max
+  # range spec params are checked inside get_cells():
+  # ss, sheet, range, skip, n_max
   out <- get_cells(
     ss = ss,
     sheet = sheet, range = range,
@@ -67,7 +67,7 @@ range_read_cells <- function(ss,
   add_loc(out)
 }
 
-## I use this elsewhere during development, so handy to have in a function
+# I use this elsewhere during development, so handy to have in a function
 add_loc <- function(df) {
   tibble::add_column(
     df,

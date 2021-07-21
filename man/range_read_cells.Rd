@@ -15,11 +15,17 @@ range_read_cells(
 )
 }
 \arguments{
-\item{ss}{Something that identifies a Google Sheet: its file ID, a URL from
-which we can recover the ID, an instance of \code{googlesheets4_spreadsheet}
-(returned by \code{\link[=gs4_get]{gs4_get()}}), or a \code{\link[googledrive:dribble]{dribble}}, which
-is how googledrive represents Drive files. Processed through
-\code{\link[=as_sheets_id]{as_sheets_id()}}.}
+\item{ss}{Something that identifies a Google Sheet:
+\itemize{
+\item its file id as a string or \code{\link[googledrive:as_id]{drive_id}}
+\item a URL from which we can recover the id
+\item a one-row \code{\link[googledrive:dribble]{dribble}}, which is how googledrive
+represents Drive files
+\item an instance of \code{googlesheets4_spreadsheet}, which is what \code{\link[=gs4_get]{gs4_get()}}
+returns
+}
+
+Processed through \code{\link[=as_sheets_id]{as_sheets_id()}}.}
 
 \item{sheet}{Sheet to read, in the sense of "worksheet" or "tab". You can identify a sheet by name, with a string, or by position, with a number. Ignored if the sheet is specified via \code{range}. If neither argument specifies the sheet, defaults to the first visible sheet.}
 
@@ -58,7 +64,7 @@ A tibble with one row per cell in the \code{range}.
 }
 \description{
 This low-level function returns cell data in a tibble with one row per cell.
-This tibble has integer variables \code{row} and \code{column} (referring to location
+This tibble has integer variables \code{row} and \code{col} (referring to location
 with the Google Sheet), an A1-style reference \code{loc}, and a \code{cell}
 list-column. The flagship function \code{\link[=read_sheet]{read_sheet()}}, a.k.a. \code{\link[=range_read]{range_read()}}, is
 what most users are looking for, rather than \code{range_read_cells()}.

@@ -10,9 +10,10 @@ test_that("range_spreadread() works", {
   )
   speedread <- range_speedread(
     test_sheet("googlesheets4-cell-tests"),
-    range = "'range-experimentation'!B:D"
+    range = "'range-experimentation'!B:D",
+    col_types = readr::cols() # suppress col spec printing
   )
-  expect_equivalent(read, speedread)
+  expect_equal(read, speedread, ignore_attr = TRUE)
 
   # specify col_types
   read <- range_read(
@@ -31,5 +32,5 @@ test_that("range_spreadread() works", {
       `Date of death` = readr::col_date("%m/%d/%Y")
     )
   )
-  expect_equivalent(read, speedread)
+  expect_equal(read, speedread, ignore_attr = TRUE)
 })

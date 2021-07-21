@@ -8,8 +8,10 @@ test_that("range_write() works", {
 
   n <- 3
   m <- 5
-  data <- tibble::as_tibble(
-    matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+  data <- suppressMessages( # silence messages about name repair
+    tibble::as_tibble(
+      matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+    )
   )
 
   ss <- local_ss(me_(), sheets = list(foo = data))
@@ -39,6 +41,25 @@ test_that("range_write() works", {
   expect_equal(df, data[1:3])
 })
 
+# https://github.com/tidyverse/googlesheets4/issues/203
+test_that("we can write a hole-y tibble containing NULLs", {
+  skip_if_offline()
+  skip_if_no_token()
+
+  dat_write <- tibble::tibble(A = list(NULL, "HI"), B = month.abb[1:2])
+
+  ss <- local_ss(me_("write-NULL"), sheets = dat_write)
+  write_sheet(dat_write, ss, sheet = 1)
+
+  dat_read <- read_sheet(ss)
+  expect_equal(dat_read$A, c(NA, "HI"))
+  expect_equal(dat_read$B, dat_write$B)
+
+  dat_read <- read_sheet(ss, col_types = "Lc")
+  expect_equal(dat_read$A, dat_write$A)
+  expect_equal(dat_read$B, dat_write$B)
+})
+
 # ---- helpers ----
 test_that("prepare_loc() makes the right call re: `start` vs. `range`", {
   expect_loc <- function(x, loc) {
@@ -64,8 +85,10 @@ test_that("prepare_loc() makes the right call re: `start` vs. `range`", {
 test_that("prepare_dims() works when write_loc is a `start` (a GridCoordinate)", {
   n <- 3
   m <- 5
-  data <- tibble::as_tibble(
-    matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+  data <- suppressMessages( # silence messages about name repair
+    tibble::as_tibble(
+      matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+    )
   )
 
   expect_dims <- function(loc, col_names, dims) {
@@ -98,8 +121,10 @@ test_that("prepare_dims() works when write_loc is a `start` (a GridCoordinate)",
 test_that("prepare_dims() works when write_loc is a `range` (a GridRange)", {
   n <- 3
   m <- 5
-  data <- tibble::as_tibble(
-    matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+  data <- suppressMessages( # silence messages about name repair
+    tibble::as_tibble(
+      matrix(head(letters, n * m), nrow = n , ncol = m), .name_repair = "unique"
+    )
   )
 
   expect_dims <- function(x, col_names, dims) {

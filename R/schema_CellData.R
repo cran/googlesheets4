@@ -23,17 +23,16 @@ as_CellData <- function(x, .na = NULL) {
 
 #' @export
 as_CellData.default <- function(x, .na = NULL) {
-  stop_glue(
-    "Don't know how to make an instance of {bt('CellData')} from something of ",
-    "class {class_collapse(x)}."
-  )
+  abort_unsupported_conversion(x, to = "CellData")
 }
 
 # I want to centralize what we send for NA, even though -- for now, at
 # least -- I have not exposed this in user-facing functions. You could imagine
-# generalizing to allow user to request we send #N/A instead of an empty cell.
+# generalizing to allow user to request we send #N/A.
 # More about #N/A:
 # https://support.google.com/docs/answer/3093359?hl=en
+# However, again, for now, we leave NA as NA and let jsonlite do its usual
+# thing, which is to encode as JSON `null`.
 empty_cell <- function(.na = NULL) {
   if (is.null(.na)) {
     new_CellData(userEnteredValue = NA)
@@ -57,7 +56,7 @@ cell_data <- function(x, val_type, .na = NULL) {
 
 #' @export
 as_CellData.NULL <- function(x, .na = NULL) {
-  empty_cell(.na)
+  list(empty_cell(.na))
 }
 
 #' @export
@@ -146,4 +145,5 @@ format.googlesheets4_schema_CellData <- function(x, ...) {
 print.googlesheets4_schema_CellData <- function(x, ...) {
   header <- as.character(glue("<CellData>"))
   cat(c(header, format(x)), sep = "\n")
+  invisible(x)
 }

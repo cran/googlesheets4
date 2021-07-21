@@ -44,9 +44,12 @@ sheet_delete <- function(ss, sheet) {
 
   # capture sheet ids ----------------------------------------------------------
   s <- map(sheet, ~ lookup_sheet(.x, sheets_df = x$sheets))
-  msg <- glue("  * {map_chr(s, 'name')}\n")
-  msg <- c(glue("Deleting these sheet(s) from {dq(x$name)}:"), msg)
-  message_collapse(msg)
+  sheet_names <- map_chr(s, "name")
+  n <- length(sheet_names)
+  gs4_bullets(c(
+    v = "Deleting {n} sheet{?s} from {.s_sheet {x$name}}:",
+    bulletize(gargle_map_cli(sheet_names, template = "{.field <<x>>}"))
+  ))
 
   sid <- map(s, "id")
   requests <- map(sid, ~ list(deleteSheet = list(sheetId = .x)))

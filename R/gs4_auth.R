@@ -62,15 +62,15 @@ gs4_auth <- function(email = gargle::gargle_oauth_email(),
     token = token
   )
   if (!inherits(cred, "Token2.0")) {
-    stop(
-      "Can't get Google credentials.\n",
-      "Are you running googlesheets4 in a non-interactive session? Consider:\n",
-      "  * `gs4_deauth()` to prevent the attempt to get credentials.\n",
-      "  * Call `gs4_auth()` directly with all necessary specifics.\n",
-      "See gargle's \"Non-interactive auth\" vignette for more details:\n",
-      "https://gargle.r-lib.org/articles/non-interactive-auth.html",
-      call. = FALSE
-    )
+    gs4_abort(c(
+      "Can't get Google credentials.",
+      "i" = "Are you running {.pkg googlesheets4} in a non-interactive \\
+             session? Consider:",
+      "*" = "Call {.fun gs4_deauth} to prevent the attempt to get credentials.",
+      "*" = "Call {.fun gs4_auth} directly with all necessary specifics.",
+      "i" = "See gargle's \"Non-interactive auth\" vignette for more details:",
+      "i" = "{.url https://gargle.r-lib.org/articles/non-interactive-auth.html}"
+    ))
   }
   .auth$set_cred(cred)
   .auth$set_auth_active(TRUE)
@@ -184,7 +184,7 @@ gs4_has_token <- function() {
 #' gs4_auth_configure(app = original_app, api_key = original_api_key)
 gs4_auth_configure <- function(app, path, api_key) {
   if (!missing(app) && !missing(path)) {
-    stop("Must supply exactly one of `app` and `path`", call. = FALSE)
+    gs4_abort("Must supply exactly one of {.arg app} and {.arg path}, not both.")
   }
   stopifnot(missing(api_key) || is.null(api_key) || is_string(api_key))
 
@@ -223,12 +223,14 @@ gs4_oauth_app <- function() .auth$app
 #' @examples
 #' gs4_user()
 gs4_user <- function() {
-  if (gs4_has_token()) {
-    gargle::token_email(gs4_token())
-  } else {
-    message("Not logged in as any specific Google user.")
-    invisible()
+  if (!gs4_has_token()) {
+    gs4_bullets(c(i = "Not logged in as any specific Google user."))
+    return(invisible())
   }
+
+  email <- gargle::token_email(gs4_token())
+  gs4_bullets(c(i = "Logged in to {.pkg googlesheets4} as {.email {email}}."))
+  invisible(email)
 }
 
 # use this as a guard whenever a googlesheets4 function calls a
@@ -238,16 +240,18 @@ gs4_user <- function() {
 check_gs4_email_is_drive_email <- function() {
   if (googledrive::drive_has_token() && gs4_has_token()) {
     drive_email <- googledrive::drive_user()[["emailAddress"]]
-    gs4_email <- gs4_user()
+    gs4_email <- with_gs4_quiet(gs4_user())
     if (drive_email != gs4_email) {
-      message_glue("
-        Authenticated as 2 different users with googledrive and googlesheets4:
-          * googledrive: {drive_email}
-          * googlesheets4: {gs4_email}
-        If you get a puzzling result, this is probably why.
-        See the article \"Using googlesheets4 with googledrive\" for tips:
-        https://googlesheets4.tidyverse.org/articles/articles/drive-and-sheets.html
-      ")
+      gs4_bullets(c(
+        "!" = "Authenticated as 2 different users with googledrive and \\
+               googlesheets4:",
+        " " = "googledrive: {.email {drive_email}}",
+        " " = "googlesheets4: {.email {gs4_email}}",
+        " " = "If you get a puzzling result, this is probably why.",
+        "i" = "See the article \"Using googlesheets4 with googledrive\" \\
+               for tips:",
+        " " = "{.url https://googlesheets4.tidyverse.org/articles/articles/drive-and-sheets.html}"
+      ))
     }
   }
 }
@@ -256,18 +260,36 @@ check_gs4_email_is_drive_email <- function() {
 gs4_auth_internal <- function(account = c("docs", "testing"),
                               scopes = NULL,
                               drive = TRUE) {
-  stopifnot(gargle:::secret_can_decrypt("googlesheets4"))
   account <- match.arg(account)
+  can_decrypt <- gargle:::secret_can_decrypt("googlesheets4")
+  online <- !is.null(curl::nslookup("sheets.googleapis.com", error = FALSE))
+  if (!can_decrypt || !online) {
+    gs4_abort(
+      message = c(
+        "Auth unsuccessful:",
+        if (!can_decrypt) {
+          c("x" = "Can't decrypt the {.field {account}} service account token.")
+        },
+        if (!online) {
+          c("x" = "We don't appear to be online. Or maybe the Sheets API is down?")
+        }
+      ),
+      class = "googlesheets4_auth_internal_error",
+      can_decrypt = can_decrypt, online = online
+    )
+  }
+
+  if (!is_interactive()) local_gs4_quiet()
   filename <- glue("googlesheets4-{account}.json")
   # TODO: revisit when I do PKG_scopes()
   # https://github.com/r-lib/gargle/issues/103
   scopes <- scopes %||% "https://www.googleapis.com/auth/drive"
   json <- gargle:::secret_read("googlesheets4", filename)
   gs4_auth(scopes = scopes, path = rawToChar(json))
-  print(gs4_user())
+  gs4_user()
   if (drive) {
     googledrive::drive_auth(token = gs4_token())
-    print(googledrive::drive_user())
+    gs4_bullets(c(i = "Authed also with {.pkg googledrive}."))
   }
   invisible(TRUE)
 }
@@ -278,4 +300,19 @@ gs4_auth_docs <- function(scopes = NULL, drive = TRUE) {
 
 gs4_auth_testing <- function(scopes = NULL, drive = TRUE) {
   gs4_auth_internal("testing", scopes = scopes, drive = drive)
+}
+
+local_deauth <- function(env = parent.frame()) {
+  original_cred <- .auth$get_cred()
+  original_auth_active <- .auth$auth_active
+  gs4_bullets(c(i = "Going into deauthorized state."))
+  withr::defer(
+    gs4_bullets(c("i" = "Restoring previous auth state.")),
+    envir = env
+  )
+  withr::defer({
+    .auth$set_cred(original_cred)
+    .auth$set_auth_active(original_auth_active)
+  }, envir = env)
+  gs4_deauth()
 }
