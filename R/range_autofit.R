@@ -25,36 +25,34 @@
 #' @seealso Makes an `AutoResizeDimensionsRequest`:
 #' * <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#autoresizedimensionsrequest>
 #'
-#' @examples
-#' if (gs4_has_token()) {
-#'   dat <- tibble::tibble(
-#'     fruit = c("date", "lime", "pear", "plum")
-#'   )
+#' @examplesIf gs4_has_token()
+#' dat <- tibble::tibble(
+#'   fruit = c("date", "lime", "pear", "plum")
+#' )
 #'
-#'   ss <- gs4_create("range-autofit-demo", sheets = dat)
-#'   ss
+#' ss <- gs4_create("range-autofit-demo", sheets = dat)
+#' ss
 #'
-#'   # open in the browser
-#'   gs4_browse(ss)
+#' # open in the browser
+#' gs4_browse(ss)
 #'
-#'   # shrink column A to fit the short fruit names
-#'   range_autofit(ss)
-#'   # in the browser, notice how the column width shrank
+#' # shrink column A to fit the short fruit names
+#' range_autofit(ss)
+#' # in the browser, notice how the column width shrank
 #'
-#'   # send some longer fruit names
-#'   dat2 <- tibble::tibble(
-#'     fruit = c("cucumber", "honeydew")
-#'   )
-#'   ss %>% sheet_append(dat2)
-#'   # in the browser, see that column A is now too narrow to show the data
+#' # send some longer fruit names
+#' dat2 <- tibble::tibble(
+#'   fruit = c("cucumber", "honeydew")
+#' )
+#' ss %>% sheet_append(dat2)
+#' # in the browser, see that column A is now too narrow to show the data
 #'
-#'   range_autofit(ss)
-#'   # in the browser, see the column A reveals all the data now
+#' range_autofit(ss)
+#' # in the browser, see the column A reveals all the data now
 #'
-#'   # clean up
-#'   gs4_find("range-autofit-demo") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("range-autofit-demo") %>%
+#'   googledrive::drive_trash()
 range_autofit <- function(ss,
                           sheet = NULL,
                           range = NULL,
@@ -121,7 +119,7 @@ force_cell_limits <- function(x) {
   x
 }
 
-check_only_one_dimension <- function(x) {
+check_only_one_dimension <- function(x, call = caller_env()) {
   limits <- x$cell_limits
 
   if (is.na(limits$ul[1]) && is.na(limits$lr[1])) {
@@ -131,8 +129,10 @@ check_only_one_dimension <- function(x) {
     return(invisible(x))
   }
 
-  gs4_abort("
-    The {.arg range} must target only columns or only rows, but not both.")
+  gs4_abort(
+    "The {.arg range} must target only columns or only rows, but not both.",
+    call = call
+  )
 }
 
 determine_dimension <- function(x) {

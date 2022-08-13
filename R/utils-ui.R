@@ -7,7 +7,7 @@ gs4_theme <- function() {
     span.range = list(color = "yellow", fmt = single_quote_weird_name),
     # since we're using color so much elsewhere, I think the standard bullet
     # should be "normal" color; matches what I do in googledrive
-    ".memo .memo-item-*" = list(
+    ".bullets .bullet-*" = list(
       "text-exdent" = 2,
       before = function(x) paste0(cli::symbol$bullet, " ")
     )
@@ -55,11 +55,12 @@ with_no_color <- function(code) {
 message <- function(...) {
   gs4_abort("
     Internal error: use the UI functions in {.pkg googlesheets4} \\
-    instead of {.fun message}")
+    instead of {.fun message}",
+    .internal = TRUE)
 }
 
-fr <- function(x) format(x, justify = 'right')
-fl <- function(x) format(x, justify = 'left')
+fr <- function(x) format(x, justify = "right")
+fl <- function(x) format(x, justify = "left")
 
 gs4_quiet <- function() {
   getOption("googlesheets4_quiet", default = NA)
@@ -68,33 +69,31 @@ gs4_quiet <- function() {
 #' @export
 #' @rdname googlesheets4-configuration
 #' @param env The environment to use for scoping
-#' @examples
-#' if (gs4_has_token()) {
-#'   # message: "Creating new Sheet ..."
-#'   (ss <- gs4_create("gs4-quiet-demo", sheets = "alpha"))
+#' @examplesIf gs4_has_token()
+#' # message: "Creating new Sheet ..."
+#' (ss <- gs4_create("gs4-quiet-demo", sheets = "alpha"))
 #'
-#'   # message: "Editing ..., Writing ..."
-#'   range_write(ss, data = data.frame(x = 1, y = "a"))
+#' # message: "Editing ..., Writing ..."
+#' range_write(ss, data = data.frame(x = 1, y = "a"))
 #'
-#'   # suppress messages for a small amount of code
-#'   with_gs4_quiet(
-#'     ss %>% sheet_append(data.frame(x = 2, y = "b"))
-#'   )
+#' # suppress messages for a small amount of code
+#' with_gs4_quiet(
+#'   ss %>% sheet_append(data.frame(x = 2, y = "b"))
+#' )
 #'
-#'   # message: "Writing ..., Appending ..."
-#'   ss %>% sheet_append(data.frame(x = 3, y = "c"))
+#' # message: "Writing ..., Appending ..."
+#' ss %>% sheet_append(data.frame(x = 3, y = "c"))
 #'
-#'   # suppress messages until end of current scope
-#'   local_gs4_quiet()
-#'   ss %>% sheet_append(data.frame(x = 4, y = "d"))
+#' # suppress messages until end of current scope
+#' local_gs4_quiet()
+#' ss %>% sheet_append(data.frame(x = 4, y = "d"))
 #'
-#'   # see that all the data was, in fact, written
-#'   read_sheet(ss)
+#' # see that all the data was, in fact, written
+#' read_sheet(ss)
 #'
-#'   # clean up
-#'   gs4_find("gs4-quiet-demo") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("gs4-quiet-demo") %>%
+#'   googledrive::drive_trash()
 local_gs4_quiet <- function(env = parent.frame()) {
   withr::local_options(list(googlesheets4_quiet = TRUE), .local_envir = env)
 }
@@ -120,7 +119,9 @@ gs4_bullets <- function(text, .envir = parent.frame()) {
     return(invisible())
   }
   cli::cli_div(theme = gs4_theme())
-  cli::cli_bullets(text = text, .envir = .envir)
+  # TODO: fix this: when I switched from cli::cli_bullets() to
+  # cli::cli_inform(), my custom bullet styling was lost (suppressing colour)
+  cli::cli_bullets(text, .envir = .envir)
 }
 
 #' Error conditions for the googlesheets4 package
@@ -132,13 +133,18 @@ gs4_bullets <- function(text, .envir = parent.frame()) {
 #' @noRd
 NULL
 
-gs4_abort <- function(message, ..., class = NULL, .envir = parent.frame()) {
+gs4_abort <- function(message,
+                      ...,
+                      class = NULL,
+                      .envir = parent.frame(),
+                      call = caller_env()) {
   cli::cli_div(theme = gs4_theme())
   cli::cli_abort(
     message = message,
     ...,
     class = c(class, "googlesheets4_error"),
-    .envir = .envir
+    .envir = .envir,
+    call = call
   )
 }
 

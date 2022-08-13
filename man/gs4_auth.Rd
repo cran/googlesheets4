@@ -25,7 +25,7 @@ or \code{FALSE} to match nothing and force the OAuth dance in the browser. Use
 found in the cache. Specify just the domain with a glob pattern, e.g.
 \code{"*@example.com"}, to create code that "just works" for both
 \code{alice@example.com} and \code{bob@example.com}. Defaults to the option named
-"gargle_oauth_email", retrieved by \code{\link[gargle:gargle_options]{gargle_oauth_email()}}.}
+"gargle_oauth_email", retrieved by \code{\link[gargle:gargle_oauth_email]{gargle_oauth_email()}}.}
 
 \item{path}{JSON identifying the service account, in one of the forms
 supported for the \code{txt} argument of \code{\link[jsonlite:fromJSON]{jsonlite::fromJSON()}} (typically, a
@@ -42,11 +42,11 @@ permission to view or send email and is generally considered a low-value
 scope.}
 
 \item{cache}{Specifies the OAuth token cache. Defaults to the option named
-"gargle_oauth_cache", retrieved via \code{\link[gargle:gargle_options]{gargle_oauth_cache()}}.}
+"gargle_oauth_cache", retrieved via \code{\link[gargle:gargle_oauth_cache]{gargle_oauth_cache()}}.}
 
 \item{use_oob}{Whether to prefer "out of band" authentication. Defaults to
 the option named "gargle_oob_default", retrieved via
-\code{\link[gargle:gargle_options]{gargle_oob_default()}}.}
+\code{\link[gargle:gargle_oob_default]{gargle_oob_default()}}.}
 
 \item{token}{A token with class \link[httr:Token-class]{Token2.0} or an object of
 httr's class \code{request}, i.e. a token that has been prepared with
@@ -100,22 +100,22 @@ For details on the many ways to find a token, see
 Read more about gargle options, see \link[gargle:gargle_options]{gargle::gargle_options}.
 }
 \examples{
-if (interactive()) {
-  # load/refresh existing credentials, if available
-  # otherwise, go to browser for authentication and authorization
-  gs4_auth()
+\dontshow{if (rlang::is_interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+# load/refresh existing credentials, if available
+# otherwise, go to browser for authentication and authorization
+gs4_auth()
 
-  # force use of a token associated with a specific email
-  gs4_auth(email = "jenny@example.com")
+# force use of a token associated with a specific email
+gs4_auth(email = "jenny@example.com")
 
-  # use a 'read only' scope, so it's impossible to edit or delete Sheets
-  gs4_auth(
-    scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
-  )
+# use a 'read only' scope, so it's impossible to edit or delete Sheets
+gs4_auth(
+  scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
+)
 
-  # use a service account token
-  gs4_auth(path = "foofy-83ee9e7c9c48.json")
-}
+# use a service account token
+gs4_auth(path = "foofy-83ee9e7c9c48.json")
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other auth functions: 

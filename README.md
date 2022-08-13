@@ -7,9 +7,9 @@
 
 [![CRAN
 status](https://www.r-pkg.org/badges/version/googlesheets4)](https://CRAN.R-project.org/package=googlesheets4)
+[![R-CMD-check](https://github.com/tidyverse/googlesheets4/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tidyverse/googlesheets4/actions/workflows/R-CMD-check.yaml)
 [![Codecov test
-coverage](https://codecov.io/gh/tidyverse/googlesheets4/branch/master/graph/badge.svg)](https://codecov.io/gh/tidyverse/googlesheets4?branch=master)
-[![R-CMD-check](https://github.com/tidyverse/googlesheets4/workflows/R-CMD-check/badge.svg)](https://github.com/tidyverse/googlesheets4/actions)
+coverage](https://codecov.io/gh/tidyverse/googlesheets4/branch/main/graph/badge.svg)](https://app.codecov.io/gh/tidyverse/googlesheets4?branch=main)
 <!-- badges: end -->
 
 ## Overview
@@ -40,6 +40,14 @@ And the development version from [GitHub](https://github.com/) with:
 # install.packages("devtools")
 devtools::install_github("tidyverse/googlesheets4")
 ```
+
+## Cheatsheet
+
+You can see how to read data with googlesheets4 in the **data import
+cheatsheet**, which also covers similar functionality in the related
+packages readr and readxl.
+
+<a href="https://github.com/rstudio/cheatsheets/blob/master/data-import.pdf"><img src="https://raw.githubusercontent.com/rstudio/cheatsheets/master/pngs/thumbnails/data-import-cheatsheet-thumbs.png" width="630" height="252"/></a>
 
 ## Auth
 
@@ -90,9 +98,9 @@ These all achieve the same thing:
 ``` r
 # URL
 read_sheet("https://docs.google.com/spreadsheets/d/1U6Cf_qEOhiR9AZqTqS3mbMF3zt2db48ZP5v3rkrAEJY/edit#gid=780868077")
-#> ✓ Reading from "gapminder".
-#> ✓ Range 'Africa'.
-#> # A tibble: 624 x 6
+#> ✔ Reading from "gapminder".
+#> ✔ Range 'Africa'.
+#> # A tibble: 624 × 6
 #>   country continent  year lifeExp      pop gdpPercap
 #>   <chr>   <chr>     <dbl>   <dbl>    <dbl>     <dbl>
 #> 1 Algeria Africa     1952    43.1  9279525     2449.
@@ -101,12 +109,13 @@ read_sheet("https://docs.google.com/spreadsheets/d/1U6Cf_qEOhiR9AZqTqS3mbMF3zt2d
 #> 4 Algeria Africa     1967    51.4 12760499     3247.
 #> 5 Algeria Africa     1972    54.5 14760787     4183.
 #> # … with 619 more rows
+#> # ℹ Use `print(n = ...)` to see more rows
 
 # Sheet ID
 read_sheet("1U6Cf_qEOhiR9AZqTqS3mbMF3zt2db48ZP5v3rkrAEJY")
-#> ✓ Reading from "gapminder".
-#> ✓ Range 'Africa'.
-#> # A tibble: 624 x 6
+#> ✔ Reading from "gapminder".
+#> ✔ Range 'Africa'.
+#> # A tibble: 624 × 6
 #>   country continent  year lifeExp      pop gdpPercap
 #>   <chr>   <chr>     <dbl>   <dbl>    <dbl>     <dbl>
 #> 1 Algeria Africa     1952    43.1  9279525     2449.
@@ -115,14 +124,15 @@ read_sheet("1U6Cf_qEOhiR9AZqTqS3mbMF3zt2db48ZP5v3rkrAEJY")
 #> 4 Algeria Africa     1967    51.4 12760499     3247.
 #> 5 Algeria Africa     1972    54.5 14760787     4183.
 #> # … with 619 more rows
+#> # ℹ Use `print(n = ...)` to see more rows
 
 # a googledrive "dribble"
 googledrive::drive_get("gapminder") %>% 
   read_sheet()
-#> ✓ The input `path` resolved to exactly 1 file.
-#> ✓ Reading from "gapminder".
-#> ✓ Range 'Africa'.
-#> # A tibble: 624 x 6
+#> ✔ The input `path` resolved to exactly 1 file.
+#> ✔ Reading from "gapminder".
+#> ✔ Range 'Africa'.
+#> # A tibble: 624 × 6
 #>   country continent  year lifeExp      pop gdpPercap
 #>   <chr>   <chr>     <dbl>   <dbl>    <dbl>     <dbl>
 #> 1 Algeria Africa     1952    43.1  9279525     2449.
@@ -131,6 +141,7 @@ googledrive::drive_get("gapminder") %>%
 #> 4 Algeria Africa     1967    51.4 12760499     3247.
 #> 5 Algeria Africa     1972    54.5 14760787     4183.
 #> # … with 619 more rows
+#> # ℹ Use `print(n = ...)` to see more rows
 ```
 
 *Note: the only reason we can read a sheet named “gapminder” (the last
@@ -152,9 +163,9 @@ some initial data.
 
 ``` r
 (ss <- gs4_create("fluffy-bunny", sheets = list(flowers = head(iris))))
-#> ✓ Creating new Sheet: "fluffy-bunny".
+#> ✔ Creating new Sheet: "fluffy-bunny".
 #> Spreadsheet name: fluffy-bunny
-#>               ID: 1GtTKAaC0R2WI6gaGitsj1v_IGuDC6n6uVBwk8-aFExg
+#>               ID: 1YVHPcvzoM0SW4MKgQFoH8TQDtEnxnhHewOzWEj6Yz9k
 #>           Locale: en_US
 #>        Time zone: Etc/GMT
 #>      # of sheets: 1
@@ -169,11 +180,11 @@ within a (spread)Sheet.
 ``` r
 head(mtcars) %>% 
   sheet_write(ss, sheet = "autos")
-#> ✓ Writing to "fluffy-bunny".
-#> ✓ Writing to sheet 'autos'.
+#> ✔ Writing to "fluffy-bunny".
+#> ✔ Writing to sheet 'autos'.
 ss
 #> Spreadsheet name: fluffy-bunny
-#>               ID: 1GtTKAaC0R2WI6gaGitsj1v_IGuDC6n6uVBwk8-aFExg
+#>               ID: 1YVHPcvzoM0SW4MKgQFoH8TQDtEnxnhHewOzWEj6Yz9k
 #>           Locale: en_US
 #>        Time zone: Etc/GMT
 #>      # of sheets: 2

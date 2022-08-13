@@ -1,7 +1,7 @@
 A1_char_class <- "[a-zA-Z0-9:$]"
 compound_rx <- glue("(?<sheet>^.+)!(?<cell_range>{A1_char_class}+$)")
 letter_part <- "[$]?[A-Za-z]{1,3}"
-number_part <- "[$]?[0-9]{1,7}"
+number_part <- "[$]?[0-9]{1,8}"
 A1_rx <- glue("^{letter_part}{number_part}$|^{letter_part}$|^{number_part}$")
 A1_decomp <- glue("(?<column>{letter_part})?(?<row>{number_part})?")
 
@@ -84,10 +84,11 @@ as_sheets_range <- function(x) {
 # df[df$name == sheet, c("grid_rows", "grid_columns")]
 resolve_limits <- function(cell_limits, sheet_data = NULL) {
   # If no sheet_data, use theoretical maxima.
-  # Rows: Max number of cells is 5 million. So that must be the maximum
+  # https://workspaceupdates.googleblog.com/2022/03/ten-million-cells-google-sheets.html
+  # Rows: Max number of cells is 10 million. So that must be the maximum
   #       number of rows (imagine a spreadsheet with 1 sheet and 1 column).
   # Columns: Max col is "ZZZ" = cellranger::letter_to_num("ZZZ") = 18278
-  MAX_ROW <- sheet_data$grid_rows    %||% 5000000L
+  MAX_ROW <- sheet_data$grid_rows    %||% 10000000L
   MAX_COL <- sheet_data$grid_columns %||% 18278L
 
   limits <- c(cell_limits$ul, cell_limits$lr)
@@ -160,10 +161,16 @@ as_cell_limits <- function(x) {
 
 limits_from_range <- function(x) {
   x_split <- strsplit(x, ":")[[1]]
-  if (!length(x_split) %in% 1:2)   {gs4_abort("Invalid range: {.range {x}}")}
-  if (!all(grepl(A1_rx, x_split))) {gs4_abort("Invalid range: {.range {x}}")}
+  if (!length(x_split) %in% 1:2) {
+    gs4_abort("Invalid range: {.range {x}}")
+  }
+  if (!all(grepl(A1_rx, x_split))) {
+    gs4_abort("Invalid range: {.range {x}}")
+  }
   corners <- rematch2::re_match(x_split, A1_decomp)
-  if (anyNA(corners$.match))  {gs4_abort("Invalid range: {.range {x}}")}
+  if (anyNA(corners$.match)) {
+    gs4_abort("Invalid range: {.range {x}}")
+  }
   corners$column <- ifelse(nzchar(corners$column), corners$column, NA_character_)
   corners$row <- ifelse(nzchar(corners$row), corners$row, NA_character_)
   corners$row <- as.integer(corners$row)
@@ -182,17 +189,20 @@ limits_from_range <- function(x) {
   )
 }
 
-check_range <- function(range = NULL) {
+check_range <- function(range = NULL, call = caller_env()) {
   if (is.null(range) || inherits(range, "cell_limits") || is_string(range)) {
     return(range)
   }
-  gs4_abort("
-    {.arg range} must be {.code NULL}, a string, or a {.cls cell_limits} object.")
+  gs4_abort(
+    "{.arg range} must be {.code NULL}, a string, or a {.cls cell_limits} \\
+     object.",
+    call = call
+  )
 }
 
 ## the `...` are used to absorb extra variables when this is used inside pmap()
 make_cell_range <- function(start_row, end_row, start_column, end_column,
-                       sheet_name, ...) {
+                            sheet_name, ...) {
   cl <- cellranger::cell_limits(
     ul = c(start_row, start_column),
     lr = c(end_row, end_column),
@@ -204,7 +214,9 @@ make_cell_range <- function(start_row, end_row, start_column, end_column,
 ## A pair of functions for the (un)escaping of spreadsheet names
 ## for use in range strings like 'Sheet1'!A2:D4
 sq_escape <- function(x) {
-  if (is.null(x)) return()
+  if (is.null(x)) {
+    return()
+  }
   ## if string already starts and ends with single quote, pass it through
   is_not_quoted <- !map_lgl(x, ~ grepl("^'.*'$", .x))
   ## duplicate each single quote and protect string with single quotes
@@ -213,7 +225,9 @@ sq_escape <- function(x) {
 }
 
 sq_unescape <- function(x) {
-  if (is.null(x)) return()
+  if (is.null(x)) {
+    return()
+  }
   ## only modify if string starts and ends with single quote
   is_quoted <- map_lgl(x, ~ grepl("^'.*'$", .x))
   ## strip leading and trailing single quote and substitute 1 single quote

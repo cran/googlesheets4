@@ -15,35 +15,36 @@
 #' @seealso Makes an `DeleteSheetsRequest`:
 #'   * <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#DeleteSheetRequest>
 #'
-#' @examples
-#' if (gs4_has_token()) {
-#'   ss <- gs4_create("delete-sheets-from-me")
-#'   sheet_add(ss, c("alpha", "beta", "gamma", "delta"))
+#' @examplesIf gs4_has_token()
+#' ss <- gs4_create("delete-sheets-from-me")
+#' sheet_add(ss, c("alpha", "beta", "gamma", "delta"))
 #'
-#'   # get an overview of the sheets
-#'   sheet_properties(ss)
+#' # get an overview of the sheets
+#' sheet_properties(ss)
 #'
-#'   # delete sheets
-#'   sheet_delete(ss, 1)
-#'   sheet_delete(ss, "gamma")
-#'   sheet_delete(ss, list("alpha", 2))
+#' # delete sheets
+#' sheet_delete(ss, 1)
+#' sheet_delete(ss, "gamma")
+#' sheet_delete(ss, list("alpha", 2))
 #'
-#'   # get an overview of the sheets
-#'   sheet_properties(ss)
+#' # get an overview of the sheets
+#' sheet_properties(ss)
 #'
-#'   # clean up
-#'   gs4_find("delete-sheets-from-me") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("delete-sheets-from-me") %>%
+#'   googledrive::drive_trash()
 sheet_delete <- function(ss, sheet) {
   ssid <- as_sheets_id(ss)
-  walk(sheet, ~ check_sheet(.x, nm = "sheet"))
+  walk(sheet, ~ check_sheet(.x, arg = "sheet"))
 
   # retrieve spreadsheet metadata ----------------------------------------------
   x <- gs4_get(ssid)
 
   # capture sheet ids ----------------------------------------------------------
-  s <- map(sheet, ~ lookup_sheet(.x, sheets_df = x$sheets))
+  s <- map(
+    sheet,
+    ~ lookup_sheet(.x, sheets_df = x$sheets, call = quote(sheet_delete()))
+  )
   sheet_names <- map_chr(s, "name")
   n <- length(sheet_names)
   gs4_bullets(c(

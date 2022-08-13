@@ -30,39 +30,37 @@
 #' Constructs a batch of `UpdateSheetPropertiesRequest`s (one per sheet):
 #' * <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#UpdateSheetPropertiesRequest>
 #'
-#' @examples
-#' if (gs4_has_token()) {
-#'   sheet_names <- c("alfa", "bravo", "charlie", "delta", "echo", "foxtrot")
-#'   ss <- gs4_create("sheet-relocate-demo", sheets = sheet_names)
-#'   sheet_names(ss)
+#' @examplesIf gs4_has_token()
+#' sheet_names <- c("alfa", "bravo", "charlie", "delta", "echo", "foxtrot")
+#' ss <- gs4_create("sheet-relocate-demo", sheets = sheet_names)
+#' sheet_names(ss)
 #'
-#'   # move one sheet, forwards then backwards
-#'   ss %>%
-#'     sheet_relocate("echo", .before = "bravo") %>%
-#'     sheet_names()
-#'   ss %>%
-#'     sheet_relocate("echo", .after = "delta") %>%
-#'     sheet_names()
+#' # move one sheet, forwards then backwards
+#' ss %>%
+#'   sheet_relocate("echo", .before = "bravo") %>%
+#'   sheet_names()
+#' ss %>%
+#'   sheet_relocate("echo", .after = "delta") %>%
+#'   sheet_names()
 #'
-#'   # reorder and move multiple sheets to the front
-#'   ss %>%
-#'     sheet_relocate(list("foxtrot", 4)) %>%
-#'     sheet_names()
+#' # reorder and move multiple sheets to the front
+#' ss %>%
+#'   sheet_relocate(list("foxtrot", 4)) %>%
+#'   sheet_names()
 #'
-#'   # put the sheets back in the original order
-#'   ss %>%
-#'     sheet_relocate(sheet_names) %>%
-#'     sheet_names()
+#' # put the sheets back in the original order
+#' ss %>%
+#'   sheet_relocate(sheet_names) %>%
+#'   sheet_names()
 #'
-#'   # reorder and move multiple sheets to the back
-#'   ss %>%
-#'     sheet_relocate(c("bravo", "alfa", "echo"), .after = 10) %>%
-#'     sheet_names()
+#' # reorder and move multiple sheets to the back
+#' ss %>%
+#'   sheet_relocate(c("bravo", "alfa", "echo"), .after = 10) %>%
+#'   sheet_names()
 #'
-#'   # clean up
-#'   gs4_find("sheet-relocate-demo") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("sheet-relocate-demo") %>%
+#'   googledrive::drive_trash()
 sheet_relocate <- function(ss,
                            sheet,
                            .before = if (is.null(.after)) 1,
@@ -81,7 +79,10 @@ sheet_relocate <- function(ss,
   requests <- map(
     sheet,
     ~ make_UpdateSheetPropertiesRequest(
-        sheet = .x, .before = .before, .after = .after, sheets_df = x$sheets
+      sheet = .x,
+      .before = .before, .after = .after,
+      sheets_df = x$sheets,
+      call = quote(sheet_relocate())
     )
   )
   req <- request_generate(
@@ -99,9 +100,10 @@ sheet_relocate <- function(ss,
 
 make_UpdateSheetPropertiesRequest <- function(sheet,
                                               .before, .after,
-                                              sheets_df) {
-  s <- lookup_sheet(sheet, sheets_df = sheets_df)
-  index <- resolve_index(sheets_df, .before, .after)
+                                              sheets_df,
+                                              call = caller_env()) {
+  s <- lookup_sheet(sheet, sheets_df = sheets_df, call = call)
+  index <- resolve_index(sheets_df, .before, .after, call = call)
   sp <- new("SheetProperties", sheetId = s$id, index = index)
   update_req <- new(
     "UpdateSheetPropertiesRequest",

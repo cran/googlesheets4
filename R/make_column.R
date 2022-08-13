@@ -2,13 +2,12 @@ make_column <- function(df, ctype, ..., nr, guess_max = min(1000, nr)) {
   ## must resolve COL_GUESS here (vs when parsing) because need to know ctype
   ## here, when making the column
   ctype <- resolve_col_type(df$cell[df$row <= guess_max], ctype)
-  parsed <- parse(df$cell, ctype, ...)
+  parsed <- gs4_parse(df$cell, ctype, ...)
   if (is.null(parsed)) {
     return()
   }
   fodder <- rep_len(NA, length.out = nr)
-  column <- switch(
-    ctype,
+  column <- switch(ctype,
     ## NAs must be numeric in order to initialize datetimes with a timezone
     CELL_DATE     = as_Date(as.numeric(fodder)),
     ## TODO: time of day not really implemented yet
@@ -35,10 +34,9 @@ resolve_col_type <- function(cell, ctype = "COL_GUESS") {
     consensus_col_type()
 }
 
-parse <- function(x, ctype, ...) {
+gs4_parse <- function(x, ctype, ...) {
   stopifnot(is_string(ctype))
-  parse_fun <- switch(
-    ctype,
+  parse_fun <- switch(ctype,
     COL_SKIP      = as_skip,
     CELL_LOGICAL  = as_logical,
     CELL_INTEGER  = as_integer,
@@ -51,7 +49,10 @@ parse <- function(x, ctype, ...) {
     COL_CELL      = as_cell,
     COL_LIST      = as_list,
     ## TODO: factor, duration
-    gs4_abort("Not a recognized column type: {.field {ctype}}")
+    gs4_abort(
+      "Not a recognized column type: {.field {ctype}}",
+      .internal = TRUE
+    )
   )
   if (inherits(x, "SHEETS_CELL")) {
     x <- list(x)
@@ -67,13 +68,12 @@ as_list <- function(cell, ...) {
     ctype() %>%
     effective_cell_type() %>%
     blank_to_logical()
-  map2(cell, ctypes, parse, ...)
+  map2(cell, ctypes, gs4_parse, ...)
 }
 
 ## prepare to coerce to logical, integer, double
 cell_content <- function(cell, na = "", trim_ws = TRUE) {
-  switch(
-    ctype(cell),
+  switch(ctype(cell),
     CELL_BLANK = NA,
     CELL_LOGICAL = pluck(cell, "effectiveValue", "boolValue"),
     CELL_NUMERIC = pluck(cell, "effectiveValue", "numberValue"),
@@ -106,8 +106,7 @@ as_double <- function(cell, na = "", trim_ws = TRUE) {
 
 ## prepare to coerce to date, time, datetime
 cell_content_datetime <- function(cell, na = "", trim_ws = TRUE) {
-  switch(
-    ctype(cell),
+  switch(ctype(cell),
     CELL_BLANK = NA,
     CELL_LOGICAL = NA,
     CELL_NUMERIC = NA,

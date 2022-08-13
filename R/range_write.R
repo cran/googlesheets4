@@ -69,40 +69,38 @@
 #' The main data write is done via an `UpdateCellsRequest`:
 #'   * <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#updatecellsrequest>
 #'
-#' @examples
-#' if (gs4_has_token()) {
-#'   # create a Sheet with some initial, empty (work)sheets
-#'   (ss <- gs4_create("range-write-demo", sheets = c("alpha", "beta")))
+#' @examplesIf gs4_has_token()
+#' # create a Sheet with some initial, empty (work)sheets
+#' (ss <- gs4_create("range-write-demo", sheets = c("alpha", "beta")))
 #'
-#'   df <- data.frame(
-#'     x = 1:3,
-#'     y = letters[1:3]
-#'   )
+#' df <- data.frame(
+#'   x = 1:3,
+#'   y = letters[1:3]
+#' )
 #'
-#'   #  write df somewhere other than the "upper left corner"
-#'   range_write(ss, data = df, range = "D6")
+#' #  write df somewhere other than the "upper left corner"
+#' range_write(ss, data = df, range = "D6")
 #'
-#'   # view your magnificent creation in the browser
-#'   gs4_browse(ss)
+#' # view your magnificent creation in the browser
+#' gs4_browse(ss)
 #'
-#'   # send data of disparate types to a 1-row rectangle
-#'   dat <- tibble::tibble(
-#'     string = "string",
-#'     logical = TRUE,
-#'     datetime = Sys.time()
-#'   )
-#'   range_write(ss, data = dat, sheet = "beta", col_names = FALSE)
+#' # send data of disparate types to a 1-row rectangle
+#' dat <- tibble::tibble(
+#'   string = "string",
+#'   logical = TRUE,
+#'   datetime = Sys.time()
+#' )
+#' range_write(ss, data = dat, sheet = "beta", col_names = FALSE)
 #'
-#'   # send data of disparate types to a 1-column rectangle
-#'   dat <- tibble::tibble(
-#'     x = list(Sys.time(), FALSE, "string")
-#'   )
-#'   range_write(ss, data = dat, range = "beta!C5", col_names = FALSE)
+#' # send data of disparate types to a 1-column rectangle
+#' dat <- tibble::tibble(
+#'   x = list(Sys.time(), FALSE, "string")
+#' )
+#' range_write(ss, data = dat, range = "beta!C5", col_names = FALSE)
 #'
-#'   # clean up
-#'   gs4_find("range-write-demo") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("range-write-demo") %>%
+#'   googledrive::drive_trash()
 range_write <- function(ss,
                         data,
                         sheet = NULL,
@@ -121,7 +119,8 @@ range_write <- function(ss,
 
   # determine (work)sheet ------------------------------------------------------
   range_spec <- as_range_spec(
-    range, sheet = sheet,
+    range,
+    sheet = sheet,
     sheets_df = x$sheets, nr_df = x$named_ranges
   )
   range_spec$sheet_name <- range_spec$sheet_name %||% first_visible_name(x$sheets)
@@ -129,7 +128,7 @@ range_write <- function(ss,
 
   # initialize the batch update requests; store details on target sheet s ------
   requests <- list()
-  s <- lookup_sheet(range_spec$sheet_name , sheets_df = x$sheets)
+  s <- lookup_sheet(range_spec$sheet_name, sheets_df = x$sheets)
 
   # package the write location as `start` or `range` ---------------------------
   loc <- prepare_loc(range_spec)
@@ -151,7 +150,8 @@ range_write <- function(ss,
     gs4_bullets(c(
       v = "Changing dims: ({s$grid_rows} x {s$grid_columns}) --> \\
            ({new_dims$rowCount %||% s$grid_rows} x \\
-           {new_dims$columnCount %||% s$grid_columns})."))
+           {new_dims$columnCount %||% s$grid_columns})."
+    ))
     requests <- c(requests, list(resize_req))
   }
 

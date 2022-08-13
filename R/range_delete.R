@@ -32,27 +32,25 @@
 #' @seealso Makes a `DeleteRangeRequest`:
 #' * <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#DeleteRangeRequest>
 #'
-#' @examples
-#' if (gs4_has_token()) {
-#'   # create a data frame to use as initial data
-#'   df <- gs4_fodder(10)
+#' @examplesIf gs4_has_token()
+#' # create a data frame to use as initial data
+#' df <- gs4_fodder(10)
 #'
-#'   # create Sheet
-#'   ss <- gs4_create("range-delete-example", sheets = list(df))
+#' # create Sheet
+#' ss <- gs4_create("range-delete-example", sheets = list(df))
 #'
-#'   # delete some rows
-#'   range_delete(ss, range = "2:4")
+#' # delete some rows
+#' range_delete(ss, range = "2:4")
 #'
-#'   # delete a column
-#'   range_delete(ss, range = "C")
+#' # delete a column
+#' range_delete(ss, range = "C")
 #'
-#'   # delete a rectangle and specify how to shift remaining cells
-#'   range_delete(ss, range = "B3:F4", shift = "left")
+#' # delete a rectangle and specify how to shift remaining cells
+#' range_delete(ss, range = "B3:F4", shift = "left")
 #'
-#'   # clean up
-#'   gs4_find("range-delete-example") %>%
-#'     googledrive::drive_trash()
-#' }
+#' # clean up
+#' gs4_find("range-delete-example") %>%
+#'   googledrive::drive_trash()
 range_delete <- function(ss,
                          sheet = NULL,
                          range,
@@ -65,7 +63,10 @@ range_delete <- function(ss,
     shift_dimension <- NULL
   } else {
     shift <- match.arg(shift, c("up", "left"))
-    shift_dimension <- switch(shift, up = "ROWS", left = "COLUMNS")
+    shift_dimension <- switch(shift,
+      up = "ROWS",
+      left = "COLUMNS"
+    )
   }
 
   x <- gs4_get(ssid)
@@ -90,7 +91,8 @@ range_delete <- function(ss,
   if (is.null(shift_dimension)) {
     gs4_abort(c(
       "The {.arg shift} direction must be specified for this {.arg range}.",
-      "It can't be automatically determined."))
+      "It can't be automatically determined."
+    ))
   }
 
   # form batch update request --------------------------------------------------
@@ -114,7 +116,7 @@ range_delete <- function(ss,
   invisible(ssid)
 }
 
-determine_shift <- function(gr) {
+determine_shift <- function(gr, call = caller_env()) {
   stopifnot(inherits(gr, "googlesheets4_schema_GridRange"))
   bounded_on_bottom <- !is.null(gr$endRowIndex) && notNA(gr$endRowIndex)
   bounded_on_right <- !is.null(gr$endColumnIndex) && notNA(gr$endColumnIndex)
@@ -131,9 +133,12 @@ determine_shift <- function(gr) {
     return("COLUMNS")
   }
 
-  gs4_abort(c(
-    "{.arg range} must be bounded on the bottom and/or on the right.",
-    i = "Use {.fun sheet_delete} or {.fun sheet_resize} to delete or \\
-         resize a (work)sheet."
-  ))
+  gs4_abort(
+    c(
+      "{.arg range} must be bounded on the bottom and/or on the right.",
+      i = "Use {.fun sheet_delete} or {.fun sheet_resize} to delete or \\
+           resize a (work)sheet."
+    ),
+    call = call
+  )
 }
