@@ -1,5 +1,5 @@
-## This file is the interface between googlesheets4 and the
-## auth functionality in gargle.
+# This file is the interface between googlesheets4 and the
+# auth functionality in gargle.
 
 # Initialization happens in .onLoad
 .auth <- NULL
@@ -20,6 +20,21 @@ gargle_lookup_table <- list(
 #' @eval gargle:::PREFIX_auth_details(gargle_lookup_table)
 #' @eval gargle:::PREFIX_auth_params()
 #'
+#' @param scopes One or more API scopes. Each scope can be specified in full or,
+#'   for Sheets API-specific scopes, in an abbreviated form that is recognized by
+#'   [gs4_scopes()]:
+#'   * "spreadsheets" = "https://www.googleapis.com/auth/spreadsheets"
+#'     (the default)
+#'   * "spreadsheets.readonly" =
+#'     "https://www.googleapis.com/auth/spreadsheets.readonly"
+#'   * "drive" = "https://www.googleapis.com/auth/drive"
+#'   * "drive.readonly" = "https://www.googleapis.com/auth/drive.readonly"
+#'   * "drive.file" = "https://www.googleapis.com/auth/drive.file"
+#'
+#'   See
+#'   <https://developers.google.com/identity/protocols/oauth2/scopes#sheets> for
+#'   details on the permissions for each scope.
+#'
 #' @family auth functions
 #' @export
 #'
@@ -28,32 +43,26 @@ gargle_lookup_table <- list(
 #' # otherwise, go to browser for authentication and authorization
 #' gs4_auth()
 #'
-#' # force use of a token associated with a specific email
+#' # indicate the specific identity you want to auth as
 #' gs4_auth(email = "jenny@example.com")
 #'
+#' # force a new browser dance, i.e. don't even try to use existing user
+#' # credentials
+#' gs4_auth(email = NA)
+#'
 #' # use a 'read only' scope, so it's impossible to edit or delete Sheets
-#' gs4_auth(
-#'   scopes = "https://www.googleapis.com/auth/spreadsheets.readonly"
-#' )
+#' gs4_auth(scopes = "spreadsheets.readonly")
 #'
 #' # use a service account token
 #' gs4_auth(path = "foofy-83ee9e7c9c48.json")
 gs4_auth <- function(email = gargle::gargle_oauth_email(),
-                     path = NULL,
-                     scopes = "https://www.googleapis.com/auth/spreadsheets",
+                     path = NULL, subject = NULL,
+                     scopes = "spreadsheets",
                      cache = gargle::gargle_oauth_cache(),
                      use_oob = gargle::gargle_oob_default(),
                      token = NULL) {
-  if (!missing(email) && !missing(path)) {
-    cli::cli_warn(c(
-      "It is very unusual to provide both {.arg email} and \\
-       {.arg path} to {.fun gs4_auth}.",
-      "They relate to two different auth methods.",
-      "The {.arg path} argument is only for a service account token.",
-      "If you need to specify your own OAuth client, use \\
-      {.fun gs4_auth_configure}."
-    ))
-  }
+  gargle::check_is_service_account(path, hint = "gs4_auth_configure")
+  scopes <- gs4_scopes(scopes)
 
   # I have called `gs4_auth(token = drive_token())` multiple times now,
   # without attaching googledrive. Expose this error noisily, before it gets
@@ -62,9 +71,10 @@ gs4_auth <- function(email = gargle::gargle_oauth_email(),
 
   cred <- gargle::token_fetch(
     scopes = scopes,
-    app = gs4_oauth_client() %||% gargle::tidyverse_client(),
+    client = gs4_oauth_client() %||% gargle::tidyverse_client(),
     email = email,
     path = path,
+    subject = subject,
     package = "googlesheets4",
     cache = cache,
     use_oob = use_oob,
@@ -163,8 +173,8 @@ gs4_has_token <- function() {
 #' # downloaded from Google Developers Console
 #' # this example JSON is indicative, but fake
 #' path_to_json <- system.file(
-#'   "extdata", "data", "client_secret_123.googleusercontent.com.json",
-#'   package = "googledrive"
+#'   "extdata", "client_secret_installed.googleusercontent.com.json",
+#'   package = "gargle"
 #' )
 #' gs4_auth_configure(path = path_to_json)
 #'
@@ -199,7 +209,7 @@ gs4_auth_configure <- function(client, path, api_key, app = deprecated()) {
   stopifnot(missing(client) || is.null(client) || inherits(client, "gargle_oauth_client"))
 
   if (!missing(client) || !missing(path)) {
-    .auth$set_app(client)
+    .auth$set_client(client)
   }
 
   if (!missing(api_key)) {
@@ -218,7 +228,7 @@ gs4_api_key <- function() {
 #' @export
 #' @rdname gs4_auth_configure
 gs4_oauth_client <- function() {
-  .auth$app
+  .auth$client
 }
 
 #' Get info on current user
@@ -264,12 +274,54 @@ check_gs4_email_is_drive_email <- function() {
   }
 }
 
+#' Produce scopes specific to the Sheets API
+#'
+#' When called with no arguments, `gs4_scopes()` returns a named character
+#' vector of scopes associated with the Sheets API. If `gs4_scopes(scopes =)` is
+#' given, an abbreviated entry such as `"sheets.readonly"` is expanded to a full
+#' scope (`"https://www.googleapis.com/auth/sheets.readonly"` in this case).
+#' Unrecognized scopes are passed through unchanged.
+#'
+#' @inheritParams gs4_auth
+#'
+#' @seealso
+#'   <https://developers.google.com/identity/protocols/oauth2/scopes#sheets> for
+#'   details on the permissions for each scope.
+#' @returns A character vector of scopes.
+#' @family auth functions
+#' @export
+#' @examples
+#' gs4_scopes("spreadsheets")
+#' gs4_scopes("spreadsheets.readonly")
+#' gs4_scopes("drive")
+#' gs4_scopes()
+gs4_scopes <- function(scopes = NULL) {
+  if (is.null(scopes)) {
+    sheets_scopes
+  } else {
+    resolve_scopes(user_scopes = scopes, package_scopes = sheets_scopes)
+  }
+}
+
+sheets_scopes <- c(
+  spreadsheets          = "https://www.googleapis.com/auth/spreadsheets",
+  spreadsheets.readonly = "https://www.googleapis.com/auth/spreadsheets.readonly",
+  drive                 = "https://www.googleapis.com/auth/drive",
+  drive.readonly        = "https://www.googleapis.com/auth/drive.readonly",
+  drive.file            = "https://www.googleapis.com/auth/drive.file"
+)
+
+resolve_scopes <- function(user_scopes, package_scopes) {
+  m <- match(user_scopes, names(package_scopes))
+  ifelse(is.na(m), user_scopes, package_scopes[m])
+}
+
 # unexported helpers that are nice for internal use ----
 gs4_auth_internal <- function(account = c("docs", "testing"),
                               scopes = NULL,
                               drive = TRUE) {
   account <- match.arg(account)
-  can_decrypt <- gargle:::secret_can_decrypt("googlesheets4")
+  can_decrypt <- gargle::secret_has_key("GOOGLESHEETS4_KEY")
   online <- !is.null(curl::nslookup("sheets.googleapis.com", error = FALSE))
   if (!can_decrypt || !online) {
     gs4_abort(
@@ -292,8 +344,13 @@ gs4_auth_internal <- function(account = c("docs", "testing"),
   # TODO: revisit when I do PKG_scopes()
   # https://github.com/r-lib/gargle/issues/103
   scopes <- scopes %||% "https://www.googleapis.com/auth/drive"
-  json <- gargle:::secret_read("googlesheets4", filename)
-  gs4_auth(scopes = scopes, path = rawToChar(json))
+  gs4_auth(
+    scopes = scopes,
+    path = gargle::secret_decrypt_json(
+      system.file("secret", filename, package = "googlesheets4"),
+      "GOOGLESHEETS4_KEY"
+    )
+  )
   gs4_user()
   if (drive) {
     googledrive::drive_auth(token = gs4_token())

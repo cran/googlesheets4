@@ -1,3 +1,19 @@
+# googlesheets4 1.1.1
+
+* `gs4_auth(subject =)` is a new argument that can be used with
+  `gs4_auth(path =)`, i.e. when using a service account. The `path` and
+  `subject` arguments are ultimately processed by
+  `gargle::credentials_service_account()` and support the use of a service
+  account to impersonate a normal user.
+
+* `gs4_scopes()` is a new function to access scopes relevant to the Sheets and
+  Drive APIs. When called without arguments, `gs4_scopes()` returns a named
+  vector of scopes, where the names are the associated short aliases.
+  `gs4_scopes()` can also be called with a character vector; any element that's
+  recognized as a short alias is replaced with the associated full scope (#291).
+  
+* Various internal changes to sync up with gargle v1.5.0.
+
 # googlesheets4 1.1.0
 
 ## Syncing up with gargle

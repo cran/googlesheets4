@@ -17,8 +17,8 @@ test_that("gs4_auth_configure works", {
   expect_s3_class(gs4_oauth_client(), "gargle_oauth_client")
 
   path_to_json <- system.file(
-    "extdata", "data", "client_secret_123.googleusercontent.com.json",
-    package = "googledrive"
+    "extdata", "client_secret_installed.googleusercontent.com.json",
+    package = "gargle"
   )
   gs4_auth_configure(path = path_to_json)
   expect_s3_class(gs4_oauth_client(), "gargle_oauth_client")
@@ -45,8 +45,8 @@ test_that("gs4_auth_configure(app =) is deprecated in favor of client", {
 
   client <- gargle::gargle_oauth_client_from_json(
     system.file(
-      "extdata", "data", "client_secret_123.googleusercontent.com.json",
-      package = "googledrive"
+      "extdata", "client_secret_installed.googleusercontent.com.json",
+      package = "gargle"
     ),
     name = "test-client"
   )
@@ -57,3 +57,37 @@ test_that("gs4_auth_configure(app =) is deprecated in favor of client", {
   expect_equal(gs4_oauth_client()$id, "abc.apps.googleusercontent.com")
 })
 
+# gs4_scopes() ----
+test_that("gs4_scopes() reveals Sheets scopes", {
+  expect_snapshot(gs4_scopes())
+})
+
+test_that("gs4_scopes() substitutes actual scope for short form", {
+  expect_equal(
+    gs4_scopes(c(
+      "spreadsheets",
+      "drive",
+      "drive.readonly"
+    )),
+    c(
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive",
+      "https://www.googleapis.com/auth/drive.readonly"
+    )
+  )
+})
+
+test_that("gs4_scopes() passes unrecognized scopes through", {
+  expect_equal(
+    gs4_scopes(c(
+      "email",
+      "spreadsheets.readonly",
+      "https://www.googleapis.com/auth/cloud-platform"
+    )),
+    c(
+      "email",
+      "https://www.googleapis.com/auth/spreadsheets.readonly",
+      "https://www.googleapis.com/auth/cloud-platform"
+    )
+  )
+})
